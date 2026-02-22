@@ -1,0 +1,17 @@
+{
+    "name": "Audio Wangler",
+    "short_name": "Wangler",
+    "description": "Premium Hi-Res Music Experience",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#000000",
+    "theme_color": "#581c87",
+    "icons": [
+        {
+            "src": "https://i.postimg.cc/W4ND1Ypt/aguia.webp",
+            "sizes": "512x512",
+            "type": "image/webp",
+            "purpose": "any maskable"
+        }
+    ]
+}

@@ -38,6 +38,8 @@ export default function App() {
   const audioRef2 = React.useRef<HTMLAudioElement>(null);
   const [activeAudioRef, setActiveAudioRef] = useState<1 | 2>(1);
   const [isCrossfading, setIsCrossfading] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isInstallable, setIsInstallable] = useState(false);
 
   // EQ State
   const eqBands = [20, 40, 63, 100, 160, 250, 400, 630, 1000, 1600, 2500, 4000, 6300, 10000, 20000];
@@ -54,6 +56,25 @@ export default function App() {
 
   // Persistence: Load on mount
   useEffect(() => {
+    // Service Worker Registration
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').then(reg => {
+          console.log('SW Registered', reg);
+        }).catch(err => {
+          console.log('SW Registration failed', err);
+        });
+      });
+    }
+
+    // Install Prompt Listener
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setIsInstallable(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     const savedState = localStorage.getItem(STORAGE_KEY);
     if (savedState) {
       try {
@@ -288,6 +309,16 @@ export default function App() {
     };
   }, [trackQueue]);
 
+  const handleInstallApp = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setIsInstallable(false);
+      setDeferredPrompt(null);
+    }
+  };
+
   return (
     <div
       className="min-h-screen w-full flex flex-col items-center justify-center p-4 sm:p-8 relative bg-black"
@@ -505,6 +536,8 @@ export default function App() {
                   accentColor={accentColor}
                   dspSettings={dspSettings}
                   setDspSettings={setDspSettings}
+                  isInstallable={isInstallable}
+                  onInstall={handleInstallApp}
                 />
               </motion.div>
             )}

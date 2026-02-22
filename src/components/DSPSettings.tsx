@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Zap, Sparkles, Timer, Activity, BrainCircuit, Waves } from 'lucide-react';
+import { Zap, Sparkles, Timer, Activity, BrainCircuit, Waves, Download } from 'lucide-react';
 
 interface DSPSettingsProps {
   accentColor: string;
@@ -18,9 +18,17 @@ interface DSPSettingsProps {
     crossfadeDuration: number;
     phaseCorrection: boolean;
   }>>;
+  isInstallable?: boolean;
+  onInstall?: () => void;
 }
 
-export default function DSPSettings({ accentColor, dspSettings, setDspSettings }: DSPSettingsProps) {
+export default function DSPSettings({
+  accentColor,
+  dspSettings,
+  setDspSettings,
+  isInstallable,
+  onInstall
+}: DSPSettingsProps) {
   const toggleSetting = (key: keyof typeof dspSettings) => {
     setDspSettings(prev => ({ ...prev, [key]: !prev[key] }));
   };
@@ -162,6 +170,19 @@ export default function DSPSettings({ accentColor, dspSettings, setDspSettings }
             </button>
           </div>
         </section>
+
+        {/* PWA Install Button */}
+        {isInstallable && (
+          <motion.button
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            onClick={onInstall}
+            className="w-full flex items-center justify-center space-x-3 p-6 rounded-[32px] bg-accent text-black font-display font-bold tracking-tight shadow-[0_0_20px_rgba(0,212,255,0.3)] hover:scale-[0.98] transition-transform"
+          >
+            <Download size={20} />
+            <span>Install Audio Wangler</span>
+          </motion.button>
+        )}
 
         {/* Real-time Stats */}
         <div className="mt-4 p-5 rounded-[32px] glass-card border border-white/5 flex items-center justify-between">
