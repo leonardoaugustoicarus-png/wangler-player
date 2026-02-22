@@ -18,6 +18,7 @@ export interface MusicMetadata {
   artista: string;
   capa_url: string;
   cor_dominante: string;
+  lyrics: { time: number; text: string }[];
 }
 
 export async function fetchMusicMetadata(query: string): Promise<MusicMetadata | null> {
@@ -44,24 +45,36 @@ export async function fetchMusicMetadata(query: string): Promise<MusicMetadata |
                     principal: { type: SchemaType.STRING }
                   },
                   required: ["principal"]
+                },
+                letras: {
+                  type: SchemaType.ARRAY,
+                  items: {
+                    type: SchemaType.OBJECT,
+                    properties: {
+                      tempo: { type: SchemaType.NUMBER },
+                      texto: { type: SchemaType.STRING }
+                    },
+                    required: ["tempo", "texto"]
+                  }
                 }
               },
-              required: ["titulo", "artista", "capa_url", "cores"]
+              required: ["titulo", "artista", "capa_url", "cores", "letras"]
             }
           },
           required: ["musica"]
         }
       },
-      systemInstruction: `Você é o motor de inteligência de um aplicativo de streaming de música premium. 
+      systemInstruction: `Você é o motor de inteligência de um aplicativo de streaming de música premium.
 Sua tarefa é identificar músicas e retornar SEMPRE um objeto JSON estrito.
 
-Regras de Metadados:
-1. "titulo": Nome oficial da música.
-2. "artista": Nome principal do artista.
-3. "capa_url": URL direta da capa (use https://picsum.photos/seed/{query_safe}/600/600 se não puder garantir uma URL real válida, onde {query_safe} é o nome da música sem espaços).
-4. "cores": Objeto com a propriedade "principal" contendo um hexadecimal vibrante que combine com a arte.
+System Rules:
+1. "titulo": Official track name.
+2. "artista": Main artist name.
+3. "capa_url": Direct cover URL (or https://picsum.photos/seed/{query_safe}/600/600).
+4. "cores": Object with "principal" hex color.
+5. "letras": Array of objects { "tempo": number (ms), "texto": string }. MUST provide at least 15 synchronized lines that match the real song structure.
 
-IMPORTANTE: O JSON deve seguir exatamente o schema definido.`
+IMPORTANT: RETURN JSON ONLY.`
     });
 
     const result = await model.generateContent(`Identifique esta faixa e retorne os metadados: "${query}"`);
@@ -76,7 +89,8 @@ IMPORTANTE: O JSON deve seguir exatamente o schema definido.`
         titulo: data.musica.titulo,
         artista: data.musica.artista,
         capa_url: data.musica.capa_url || `https://picsum.photos/seed/${encodeURIComponent(query)}/600/600`,
-        cor_dominante: data.musica.cores?.principal || "#00d4ff"
+        cor_dominante: data.musica.cores?.principal || "#00d4ff",
+        lyrics: data.musica.letras.map((l: any) => ({ time: l.tempo, text: l.texto }))
       };
     }
     console.warn("No 'musica' object found in response");

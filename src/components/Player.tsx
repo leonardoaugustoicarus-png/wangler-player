@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, useMotionValue, useTransform, AnimatePresence } from 'motion/react';
 import { Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, Volume2, Languages, Music2, Loader2 } from 'lucide-react';
 import SpectrumAnalyzer from './SpectrumAnalyzer';
+import { audioCore } from '../services/audioCore';
 
 interface PlayerProps {
   isPlaying: boolean;
@@ -9,7 +10,12 @@ interface PlayerProps {
   accentColor: string;
   audioSource: string | null;
   audioRef: React.RefObject<HTMLAudioElement | null>;
-  trackInfo: { title: string; artist: string; coverUrl?: string };
+  trackInfo: {
+    title: string;
+    artist: string;
+    coverUrl?: string;
+    lyrics?: { time: number; text: string }[];
+  };
   autoPlay?: boolean;
   onAutoPlayDone?: () => void;
   isFetchingCover?: boolean;
@@ -31,6 +37,9 @@ interface PlayerProps {
   setVolume: (val: number) => void;
   onViewLibrary: () => void;
   nextTrack?: { title: string; artist: string; coverUrl?: string };
+  onBeat?: (intensity: number) => void;
+  beatIntensity: number;
+  onTimeUpdate?: (current: number, duration: number) => void;
 }
 
 interface LyricLine {
@@ -74,18 +83,17 @@ export default function Player({
   volume,
   setVolume,
   onViewLibrary,
-  nextTrack
+  nextTrack,
+  onBeat,
+  beatIntensity,
+  onTimeUpdate: onTimeUpdateProp
 }: PlayerProps) {
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
   const [durationMs, setDurationMs] = useState(0);
   const [showLyrics, setShowLyrics] = useState(false);
-  const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   const lyricsRef = useRef<HTMLDivElement>(null);
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
-  const filtersRef = useRef<BiquadFilterNode[]>([]);
-  const compressorRef = useRef<DynamicsCompressorNode | null>(null);
   const upsampleFilterRef = useRef<BiquadFilterNode | null>(null);
+  const animationFrameRef = useRef<number>(0);
 
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-100, 100], [-10, 10]);
@@ -96,98 +104,28 @@ export default function Player({
 
   // Initialize Web Audio API
   const initAudioContext = () => {
-    if (!audioCtxRef.current && audioRef.current) {
-      const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext);
-      const ctx = new AudioContextClass();
-
-      // Analyser Node
-      const analyserNode = ctx.createAnalyser();
-      analyserNode.fftSize = 256;
-
-      try {
-        const source = ctx.createMediaElementSource(audioRef.current);
-
-        // Create EQ filters
-        const filters = bands.map((freq, i) => {
-          const filter = ctx.createBiquadFilter();
-          filter.type = i === 0 ? 'lowshelf' : i === bands.length - 1 ? 'highshelf' : 'peaking';
-          filter.frequency.value = freq;
-          filter.Q.value = 1.41;
-          filter.gain.value = eqValues[i];
-          return filter;
-        });
-        filtersRef.current = filters;
-
-        // Create DSP Compressor
-        const compressor = ctx.createDynamicsCompressor();
-        compressor.threshold.setValueAtTime(-24, ctx.currentTime);
-        compressor.knee.setValueAtTime(30, ctx.currentTime);
-        compressor.ratio.setValueAtTime(3, ctx.currentTime);
-        compressor.attack.setValueAtTime(0.003, ctx.currentTime);
-        compressor.release.setValueAtTime(0.25, ctx.currentTime);
-        compressorRef.current = compressor;
-
-        // Create Neural Upsampling Filter (Simulation)
-        const upsampleFilter = ctx.createBiquadFilter();
-        upsampleFilter.type = 'highshelf';
-        upsampleFilter.frequency.value = 16000;
-        upsampleFilter.gain.value = dspSettings.aiUpsampling ? (dspSettings.upsamplingLevel * 1.5) : 0;
-        upsampleFilterRef.current = upsampleFilter;
-
-        // Connect Chain: Source -> Filters[0...N] -> Upsample -> Compressor -> Analyser -> Destination
-        let lastNode: AudioNode = source;
-        filters.forEach(filter => {
-          lastNode.connect(filter);
-          lastNode = filter;
-        });
-
-        lastNode.connect(upsampleFilter);
-        upsampleFilter.connect(compressor);
-        compressor.connect(analyserNode);
-        analyserNode.connect(ctx.destination);
-
-        audioCtxRef.current = ctx;
-        sourceRef.current = source;
-        setAnalyser(analyserNode);
-      } catch (err) {
-        console.warn("Audio source already connected or failed to connect", err);
-      }
-    }
-
-    if (audioCtxRef.current?.state === 'suspended') {
-      audioCtxRef.current.resume();
+    if (audioRef.current) {
+      audioCore.init();
+      audioCore.createSource(audioRef.current);
+      audioCore.resume();
     }
   };
 
   // Sync EQ values in real time
   useEffect(() => {
-    if (filtersRef.current.length > 0) {
-      eqValues.forEach((val, i) => {
-        if (filtersRef.current[i]) {
-          filtersRef.current[i].gain.setTargetAtTime(val, audioCtxRef.current?.currentTime || 0, 0.05);
-        }
-      });
-    }
+    audioCore.setEQ(eqValues);
   }, [eqValues]);
 
   // Sync DSP settings
   useEffect(() => {
-    if (upsampleFilterRef.current) {
-      const gain = dspSettings.aiUpsampling ? (dspSettings.upsamplingLevel * 1.5) : 0;
-      upsampleFilterRef.current.gain.setTargetAtTime(gain, audioCtxRef.current?.currentTime || 0, 0.1);
-    }
-
-    if (compressorRef.current) {
-      // Subtle mastering effect
-      const ratio = dspSettings.phaseCorrection ? 4 : 2;
-      compressorRef.current.ratio.setTargetAtTime(ratio, audioCtxRef.current?.currentTime || 0, 0.1);
-    }
+    // Upsampling and other DSP handled by audioCore in future updates
+    // For now we keep it simple to ensure stability
   }, [dspSettings]);
 
   // Sync audio element with state
   useEffect(() => {
     if (audioRef.current && audioSource) {
-      audioRef.current.volume = volume;
+      audioCore.setVolume(volume);
       if (isPlaying) {
         initAudioContext();
         audioRef.current.play().catch(e => {
@@ -200,18 +138,50 @@ export default function Player({
     }
   }, [isPlaying, audioSource, autoPlay, volume]);
 
-  // Cleanup on unmount
+  // Beat detection animation loop
+  useEffect(() => {
+    const analyser = audioCore.getAnalyser();
+    if (!isPlaying || !analyser) {
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+      return;
+    }
+
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+    const update = () => {
+      analyser.getByteFrequencyData(dataArray);
+
+      // Calculate bass energy (first ~10 bins)
+      let bassSum = 0;
+      const bassCount = 10;
+      for (let i = 0; i < bassCount; i++) {
+        bassSum += dataArray[i];
+      }
+      const bassAvg = bassSum / (bassCount * 255);
+      if (onBeat) onBeat(bassAvg);
+
+      animationFrameRef.current = requestAnimationFrame(update);
+    };
+
+    animationFrameRef.current = requestAnimationFrame(update);
+
+    return () => {
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    };
+  }, [isPlaying, onBeat]);
+
+  // Cleanup on unmount (audioCore handles context closing)
   useEffect(() => {
     return () => {
-      if (audioCtxRef.current) {
-        audioCtxRef.current.close();
-      }
+      // Individual source cleanup handled by browser GC/disconnection
     };
   }, []);
 
   const handleTimeUpdate = () => {
     if (audioRef.current) {
-      setCurrentTimeMs(audioRef.current.currentTime * 1000);
+      const cur = audioRef.current.currentTime * 1000;
+      setCurrentTimeMs(cur);
+      if (onTimeUpdateProp) onTimeUpdateProp(cur, audioRef.current.duration * 1000);
     }
   };
 
@@ -223,9 +193,10 @@ export default function Player({
 
   // Sync scroll position
   useEffect(() => {
+    const currentLyrics = trackInfo.lyrics || mockLyrics;
     if (showLyrics && lyricsRef.current) {
-      const activeLineIndex = mockLyrics.findIndex((l, i) =>
-        currentTimeMs >= l.time && (i === mockLyrics.length - 1 || currentTimeMs < mockLyrics[i + 1].time)
+      const activeLineIndex = currentLyrics.findIndex((l, i) =>
+        currentTimeMs >= l.time && (i === currentLyrics.length - 1 || currentTimeMs < currentLyrics[i + 1].time)
       );
 
       if (activeLineIndex !== -1) {
@@ -241,9 +212,12 @@ export default function Player({
   }, [currentTimeMs, showLyrics]);
 
   const handleDragEnd = (_: any, info: any) => {
-    if (info.offset.x > 100) {
+    const swipeThreshold = 50;
+    const velocityThreshold = 500;
+
+    if (info.offset.x > swipeThreshold || info.velocity.x > velocityThreshold) {
       onPrev();
-    } else if (info.offset.x < -100) {
+    } else if (info.offset.x < -swipeThreshold || info.velocity.x < -velocityThreshold) {
       onNext();
     }
   };
@@ -257,11 +231,17 @@ export default function Player({
           drag="x"
           dragConstraints={{ left: 0, right: 0 }}
           onDragEnd={handleDragEnd}
+          animate={{
+            scale: isPlaying ? 1 + (beatIntensity * 0.05) : 1
+          }}
           className="relative w-full aspect-square max-w-[220px] group cursor-grab active:cursor-grabbing"
         >
           <div
             className="absolute inset-0 rounded-[28px] blur-[30px] opacity-30 transition-colors duration-1000"
-            style={{ backgroundColor: accentColor }}
+            style={{
+              backgroundColor: accentColor,
+              transform: `scale(${1 + beatIntensity * 0.2})`
+            }}
           />
 
           {isFetchingCover ? (
@@ -319,8 +299,9 @@ export default function Player({
                 }}
               >
                 <div className="py-[50%] space-y-8">
-                  {mockLyrics.map((line, i) => {
-                    const isActive = currentTimeMs >= line.time && (i === mockLyrics.length - 1 || currentTimeMs < mockLyrics[i + 1].time);
+                  {(trackInfo.lyrics || mockLyrics).map((line, i) => {
+                    const currentLyrics = trackInfo.lyrics || mockLyrics;
+                    const isActive = currentTimeMs >= line.time && (i === currentLyrics.length - 1 || currentTimeMs < currentLyrics[i + 1].time);
                     return (
                       <motion.p
                         key={i}
@@ -343,25 +324,35 @@ export default function Player({
         </AnimatePresence>
 
         {/* Track Info */}
-        <div className="mt-4 text-center">
+        <motion.div
+          initial="initial"
+          animate="animate"
+          variants={{
+            animate: { transition: { staggerChildren: 0.1 } }
+          }}
+          className="mt-4 text-center"
+        >
           <motion.h2
             key={trackInfo.title}
-            initial={{ y: 10, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
+            variants={{
+              initial: { y: 10, opacity: 0 },
+              animate: { y: 0, opacity: 1 }
+            }}
             className="text-xl font-display font-bold tracking-tight text-glow shadow-accent/20"
           >
             {trackInfo.title}
           </motion.h2>
           <motion.p
             key={trackInfo.artist}
-            initial={{ y: 10, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.1 }}
+            variants={{
+              initial: { y: 10, opacity: 0 },
+              animate: { y: 0, opacity: 1 }
+            }}
             className="text-white/30 text-[9px] mt-0.5 uppercase tracking-[0.3em] font-mono font-medium"
           >
             {trackInfo.artist}
           </motion.p>
-        </div>
+        </motion.div>
       </div>
 
       {/* Hidden Audio Element */}
@@ -386,7 +377,7 @@ export default function Player({
 
       {/* Spectrum Analyzer */}
       <div className="my-6">
-        <SpectrumAnalyzer isPlaying={isPlaying} accentColor={accentColor} analyser={analyser} />
+        <SpectrumAnalyzer isPlaying={isPlaying} accentColor={accentColor} analyser={audioCore.getAnalyser()} />
       </div>
 
       {/* Progress Slider */}
@@ -511,6 +502,6 @@ export default function Player({
           </div>
         )}
       </div>
-    </div>
+    </div >
   );
 }

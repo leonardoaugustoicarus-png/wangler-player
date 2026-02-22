@@ -7,12 +7,22 @@ import Library from './components/Library';
 import DSPSettings from './components/DSPSettings';
 import ArchitectureDoc from './components/ArchitectureDoc';
 import { fetchMusicMetadata } from './services/musicEngine';
+import { audioCore } from './services/audioCore';
 
 export default function App() {
+  // Constants
+  const STORAGE_KEY = 'audio_wangler_state';
+
   const [activeTab, setActiveTab] = useState<'player' | 'eq' | 'library' | 'arch' | 'dsp'>('player');
   const [isPlaying, setIsPlaying] = useState(false);
   const [accentColor, setAccentColor] = useState('#00d4ff');
-  const [trackQueue, setTrackQueue] = useState<{ title: string; artist: string; coverUrl?: string; url?: string }[]>([]);
+  const [trackQueue, setTrackQueue] = useState<{
+    title: string;
+    artist: string;
+    coverUrl?: string;
+    url?: string;
+    lyrics?: { time: number; text: string }[];
+  }[]>([]);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(-1);
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState<'none' | 'one' | 'all'>('none');
@@ -22,8 +32,12 @@ export default function App() {
   const [isSearching, setIsSearching] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [isFetchingCover, setIsFetchingCover] = useState(false);
+  const [beatIntensity, setBeatIntensity] = useState(0);
 
-  const audioRef = React.useRef<HTMLAudioElement>(null);
+  const audioRef1 = React.useRef<HTMLAudioElement>(null);
+  const audioRef2 = React.useRef<HTMLAudioElement>(null);
+  const [activeAudioRef, setActiveAudioRef] = useState<1 | 2>(1);
+  const [isCrossfading, setIsCrossfading] = useState(false);
 
   // EQ State
   const eqBands = [20, 40, 63, 100, 160, 250, 400, 630, 1000, 1600, 2500, 4000, 6300, 10000, 20000];
@@ -37,6 +51,46 @@ export default function App() {
     crossfadeDuration: 3.5,
     phaseCorrection: true
   });
+
+  // Persistence: Load on mount
+  useEffect(() => {
+    const savedState = localStorage.getItem(STORAGE_KEY);
+    if (savedState) {
+      try {
+        const parsed = JSON.parse(savedState);
+        if (parsed.volume !== undefined) setVolume(parsed.volume);
+        if (parsed.shuffle !== undefined) setShuffle(parsed.shuffle);
+        if (parsed.repeat !== undefined) setRepeat(parsed.repeat);
+        // Blob URLs won't work after refresh, so we clean them up from the saved queue
+        if (parsed.trackQueue) {
+          const cleanedQueue = parsed.trackQueue.map((t: any) => ({
+            ...t,
+            url: t.url?.startsWith('blob:') ? undefined : t.url
+          }));
+          setTrackQueue(cleanedQueue);
+        }
+        if (parsed.currentTrackIndex !== undefined) setCurrentTrackIndex(parsed.currentTrackIndex);
+        if (parsed.accentColor) setAccentColor(parsed.accentColor);
+        if (parsed.dspSettings) setDspSettings(prev => ({ ...prev, ...parsed.dspSettings }));
+      } catch (e) {
+        console.error("Failed to load state", e);
+      }
+    }
+  }, []);
+
+  // Persistence: Save on change
+  useEffect(() => {
+    const stateToSave = {
+      volume,
+      shuffle,
+      repeat,
+      trackQueue: trackQueue.map(t => ({ ...t, url: t.url?.startsWith('blob:') ? undefined : t.url })),
+      currentTrackIndex,
+      accentColor,
+      dspSettings
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+  }, [volume, shuffle, repeat, trackQueue, currentTrackIndex, accentColor, dspSettings]);
 
   // Handle AI Music Search
   const handleAISearch = async (e: React.FormEvent) => {
@@ -55,7 +109,8 @@ export default function App() {
         title: metadata.titulo,
         artist: metadata.artista,
         coverUrl: metadata.capa_url,
-        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" // Mock stream for AI tracks
+        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3", // Mock stream for AI tracks
+        lyrics: metadata.lyrics
       };
 
       // Se não houver música tocando, adiciona e toca
@@ -103,7 +158,8 @@ export default function App() {
           updated[newIndex] = {
             ...updated[newIndex],
             artist: metadata.artista !== title ? metadata.artista : "Local File",
-            coverUrl: metadata.capa_url
+            coverUrl: metadata.capa_url,
+            lyrics: metadata.lyrics
           };
           return updated;
         });
@@ -116,28 +172,69 @@ export default function App() {
     }
   };
 
+  const getNextIndex = () => {
+    if (trackQueue.length === 0) return -1;
+    if (shuffle) return Math.floor(Math.random() * trackQueue.length);
+    let nextIndex = currentTrackIndex + 1;
+    if (nextIndex >= trackQueue.length) {
+      return repeat === 'all' ? 0 : currentTrackIndex;
+    }
+    return nextIndex;
+  };
+
+  const triggerCrossfade = () => {
+    if (isCrossfading || !dspSettings.smartCrossfade) return;
+    const nextIndex = getNextIndex();
+    if (nextIndex === currentTrackIndex || nextIndex === -1) return;
+
+    setIsCrossfading(true);
+    const fadeTime = dspSettings.crossfadeDuration;
+
+    // Inactive becomes next
+    const activeRef = activeAudioRef === 1 ? audioRef1 : audioRef2;
+    const inactiveRef = activeAudioRef === 1 ? audioRef2 : audioRef1;
+
+    // Start next track silently
+    if (inactiveRef.current) {
+      inactiveRef.current.currentTime = 0;
+      audioCore.fadeSource(inactiveRef.current, 1, fadeTime);
+      inactiveRef.current.play();
+    }
+
+    // Fade current track down
+    if (activeRef.current) {
+      audioCore.fadeSource(activeRef.current, 0, fadeTime);
+    }
+
+    // Swap and update index after half of the fade for visual sync
+    setTimeout(() => {
+      setCurrentTrackIndex(nextIndex);
+      setActiveAudioRef(activeAudioRef === 1 ? 2 : 1);
+      setIsCrossfading(false);
+    }, fadeTime * 500);
+  };
+
+  const handleTimeUpdate = (currentMs: number, durationMs: number) => {
+    if (!dspSettings.smartCrossfade || isCrossfading || durationMs === 0) return;
+    const threshold = dspSettings.crossfadeDuration * 1000;
+    if (durationMs - currentMs <= threshold && durationMs > threshold) {
+      triggerCrossfade();
+    }
+  };
+
   const handleNext = () => {
     if (trackQueue.length === 0) return;
 
     if (repeat === 'one') {
-      setCurrentTrackIndex(currentTrackIndex); // Força re-render se necessário, ou apenas deixe o audio recomeçar
-      // No caso do audioRecomeçar, talvez seja melhor apenas setIsPlaying(false) depois setIsPlaying(true)
-      // Mas o App vai detectar a mesma URL e talvez não reinicie. 
-      // Vou mudar ligeiramente o estado para garantir o reinício.
-      if (audioRef.current) {
-        audioRef.current.currentTime = 0;
-        audioRef.current.play();
+      const activeRef = activeAudioRef === 1 ? audioRef1 : audioRef2;
+      if (activeRef.current) {
+        activeRef.current.currentTime = 0;
+        activeRef.current.play();
       }
       return;
     }
 
-    let nextIndex = currentTrackIndex + 1;
-    if (nextIndex >= trackQueue.length) {
-      nextIndex = repeat === 'all' ? 0 : currentTrackIndex;
-    }
-    if (shuffle) {
-      nextIndex = Math.floor(Math.random() * trackQueue.length);
-    }
+    const nextIndex = getNextIndex();
     setCurrentTrackIndex(nextIndex);
   };
 
@@ -163,7 +260,13 @@ export default function App() {
     const newTrack = {
       ...track,
       url: mockAudioUrl,
-      coverUrl: `https://picsum.photos/seed/${track.title}/600/600`
+      coverUrl: `https://picsum.photos/seed/${track.title}/600/600`,
+      lyrics: [
+        { time: 0, text: `Listening to ${track.title}` },
+        { time: 3000, text: `By ${track.artist}` },
+        { time: 6000, text: "High-fidelity audio stream active" },
+        { time: 9000, text: "Mastering engine at 100%" }
+      ]
     };
 
     setTrackQueue(prev => [...prev, newTrack]);
@@ -191,8 +294,13 @@ export default function App() {
       style={{ '--accent-color': accentColor } as React.CSSProperties}
     >
       {/* Dynamic Atmospheric Background */}
-      <div
+      <motion.div
         className="atmosphere"
+        animate={{
+          opacity: 0.1 + (beatIntensity * 0.4),
+          scale: 1 + (beatIntensity * 0.1),
+        }}
+        transition={{ duration: 0.1 }}
         style={{
           background: `
             radial-gradient(circle at 50% -10%, ${accentColor}08 0%, transparent 60%),
@@ -203,7 +311,13 @@ export default function App() {
       />
 
       {/* Main App Container */}
-      <div className="w-full max-w-md h-[850px] max-h-[90vh] player-chrome rounded-[48px] flex flex-col overflow-hidden relative z-10">
+      <motion.div
+        animate={{
+          boxShadow: `0 0 ${40 + (beatIntensity * 60)}px ${accentColor}10`,
+          borderColor: isPlaying ? '#fbbf24' : '#fbbf24aa'
+        }}
+        className="w-full max-w-md h-[850px] max-h-[90vh] player-chrome rounded-[48px] flex flex-col overflow-hidden relative z-10"
+      >
 
         {/* Header: Greeting & Search */}
         <header className="px-8 pt-6 pb-2 flex items-center justify-between relative">
@@ -314,7 +428,7 @@ export default function App() {
                   setIsPlaying={setIsPlaying}
                   accentColor={accentColor}
                   audioSource={currentTrack.url || null}
-                  audioRef={audioRef}
+                  audioRef={activeAudioRef === 1 ? audioRef1 : audioRef2}
                   trackInfo={currentTrack}
                   autoPlay={autoPlay}
                   onAutoPlayDone={() => setAutoPlay(false)}
@@ -331,6 +445,16 @@ export default function App() {
                   setVolume={setVolume}
                   onViewLibrary={() => setActiveTab('library')}
                   nextTrack={nextTrack}
+                  onBeat={setBeatIntensity}
+                  beatIntensity={beatIntensity}
+                  onTimeUpdate={handleTimeUpdate}
+                />
+
+                {/* Secondary Audio Target for Crossfade */}
+                <audio
+                  ref={activeAudioRef === 1 ? audioRef2 : audioRef1}
+                  src={trackQueue[getNextIndex()]?.url || undefined}
+                  className="hidden"
                 />
               </motion.div>
             )}
@@ -405,7 +529,7 @@ export default function App() {
             Criado por <span className="text-accent/40 font-bold">Ivan Wangler</span>
           </p>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
