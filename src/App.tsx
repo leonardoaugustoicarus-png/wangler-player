@@ -6,7 +6,7 @@ import Equalizer from './components/Equalizer';
 import Library from './components/Library';
 import DSPSettings from './components/DSPSettings';
 import ArchitectureDoc from './components/ArchitectureDoc';
-import { fetchMusicMetadata } from './services/musicEngine';
+import { fetchMusicMetadata, getLocalFallbackCover } from './services/musicEngine';
 import { audioCore } from './services/audioCore';
 
 export default function App() {
@@ -167,7 +167,7 @@ export default function App() {
       title,
       artist: "Local File",
       url,
-      coverUrl: undefined,
+      coverUrl: getLocalFallbackCover(title),
       isFetchingMetadata: true
     };
 

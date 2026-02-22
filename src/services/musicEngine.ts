@@ -21,6 +21,22 @@ export interface MusicMetadata {
   lyrics: { time: number; text: string }[];
 }
 
+export function getLocalFallbackCover(query: string): string {
+  const fallbacks = [
+    '/assets/covers/fallback_1.svg',
+    '/assets/covers/fallback_2.svg',
+    '/assets/covers/fallback_3.svg',
+    '/assets/covers/fallback_4.svg'
+  ];
+  // Simple hash for consistent selection per query
+  let hash = 0;
+  for (let i = 0; i < query.length; i++) {
+    hash = ((hash << 5) - hash) + query.charCodeAt(i);
+    hash |= 0;
+  }
+  return fallbacks[Math.abs(hash) % fallbacks.length];
+}
+
 export async function fetchMusicMetadata(query: string): Promise<MusicMetadata | null> {
   try {
     console.log("Fetching metadata for query:", query);
@@ -86,9 +102,16 @@ IMPORTANT: RETURN JSON ONLY.`
     if (data.musica) {
       console.log("Successfully parsed metadata:", data.musica);
       const rawCapa = data.musica.capa_url || "";
-      const finalCapa = (rawCapa.startsWith('http') && !rawCapa.includes('{'))
+      let finalCapa = (rawCapa.startsWith('http') && !rawCapa.includes('{'))
         ? rawCapa
         : `https://picsum.photos/seed/${encodeURIComponent(data.musica.titulo || query)}/600/600`;
+
+      // Se a IA retornar o placeholder do picsum mas estivermos offline, 
+      // ou se o picsum falhar, o componente Player já tem fallback para Music2 icon.
+      // Mas aqui vamos garantir que se não houver capa, usamos nosso SVG local.
+      if (!finalCapa || finalCapa.includes('{query_safe}')) {
+        finalCapa = getLocalFallbackCover(data.musica.titulo || query);
+      }
 
       return {
         titulo: data.musica.titulo,
