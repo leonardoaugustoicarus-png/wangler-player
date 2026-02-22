@@ -22,10 +22,12 @@ export interface MusicMetadata {
 
 export async function fetchMusicMetadata(query: string): Promise<MusicMetadata | null> {
   try {
+    console.log("Fetching metadata for query:", query);
     const genAI = getAI();
     const model = genAI.getGenerativeModel({
       model: "gemini-2.0-flash",
       generationConfig: {
+        temperature: 0.1,
         responseMimeType: "application/json",
         responseSchema: {
           type: SchemaType.OBJECT,
@@ -50,34 +52,37 @@ export async function fetchMusicMetadata(query: string): Promise<MusicMetadata |
           required: ["musica"]
         }
       },
-      systemInstruction: `Você é o motor de inteligência de um aplicativo de streaming de música. 
-Sua tarefa é processar solicitações de músicas e retornar SEMPRE um objeto JSON que contenha os metadados da faixa.
+      systemInstruction: `Você é o motor de inteligência de um aplicativo de streaming de música premium. 
+Sua tarefa é identificar músicas e retornar SEMPRE um objeto JSON estrito.
 
-Ao identificar uma música, você deve fornecer:
-1. "titulo": Nome da música.
-2. "artista": Nome do cantor ou banda.
-3. "capa_url": Um link direto para a imagem da capa do álbum (use https://picsum.photos/seed/{seed}/600/600 como placeholder se não tiver uma URL real, trocando {seed} pelo nome da música).
-4. "cor_dominante": Um código hexadecimal que combine com a arte da capa.
+Regras de Metadados:
+1. "titulo": Nome oficial da música.
+2. "artista": Nome principal do artista.
+3. "capa_url": URL direta da capa (use https://picsum.photos/seed/{query_safe}/600/600 se não puder garantir uma URL real válida, onde {query_safe} é o nome da música sem espaços).
+4. "cores": Objeto com a propriedade "principal" contendo um hexadecimal vibrante que combine com a arte.
 
-O formato deve ser estrito conforme o schema definido.`
+IMPORTANTE: O JSON deve seguir exatamente o schema definido.`
     });
 
-    const result = await model.generateContent(`Processar solicitação de música: "${query}". Retornar metadados precisos.`);
+    const result = await model.generateContent(`Identifique esta faixa e retorne os metadados: "${query}"`);
     const response = await result.response;
     const text = response.text();
+    console.log("Raw API Response:", text);
 
     const data = JSON.parse(text || "{}");
     if (data.musica) {
+      console.log("Successfully parsed metadata:", data.musica);
       return {
         titulo: data.musica.titulo,
         artista: data.musica.artista,
-        capa_url: data.musica.capa_url,
-        cor_dominante: data.musica.cores.principal
+        capa_url: data.musica.capa_url || `https://picsum.photos/seed/${encodeURIComponent(query)}/600/600`,
+        cor_dominante: data.musica.cores?.principal || "#00d4ff"
       };
     }
+    console.warn("No 'musica' object found in response");
     return null;
   } catch (error) {
-    console.error("Error fetching music metadata:", error);
+    console.error("Error in fetchMusicMetadata:", error);
     return null;
   }
 }
