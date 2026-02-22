@@ -1,15 +1,56 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Audio Wangler</title>
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#581c87" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
 
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Audio Wangler</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#581c87" />
+</head>
+
+<body>
+  <div id="debug-overlay"
+    style="display:none; position:fixed; inset:0; z-index:9999; background:#111; color:#ef4444; padding:2rem; font-family:monospace; overflow:auto;">
+    <h1 style="font-size:1.2rem; margin-bottom:1rem; border-bottom: 1px solid #333; padding-bottom: 10px;">⚠️ Audio
+      Wangler: Falha Crítica</h1>
+    <pre id="debug-content"
+      style="background:#000; padding:1.5rem; border:1px solid #333; color:#ccc; white-space:pre-wrap; border-radius: 8px; font-size: 0.8rem; line-height: 1.5;"></pre>
+    <div style="margin-top:2rem; display:flex; gap:1.5rem;">
+      <button onclick="localStorage.clear(); window.location.href='/?clear=true'"
+        style="padding:12px 24px; background:#ef4444; color:white; border:none; cursor:pointer; font-weight:bold; border-radius:12px; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);">
+        LIMPAR DADOS E REINICIAR
+      </button>
+      <button onclick="window.location.reload()"
+        style="padding:12px 24px; background:#333; color:white; border:none; cursor:pointer; font-weight:bold; border-radius:12px;">
+        RECARREGAR
+      </button>
+    </div>
+  </div>
+  <script>
+    (function () {
+      if (window.location.search.indexOf('clear=true') > -1) {
+        localStorage.clear();
+        console.log('Storage reset performed.');
+      }
+      function report(type, data) {
+        var overlay = document.getElementById('debug-overlay');
+        var content = document.getElementById('debug-content');
+        if (overlay && content) {
+          overlay.style.display = 'block';
+          content.innerText += '\n[' + type + ']: ' + data;
+        }
+      }
+      window.onerror = function (msg, url, line, col, error) {
+        report('ERROR', msg + '\n' + url + ':' + line + ':' + col + '\nStack: ' + (error ? error.stack : 'none'));
+      };
+      window.onunhandledrejection = function (e) {
+        report('PROMISE_REJECTION', e.reason);
+      };
+    })();
+  </script>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
+</html>
