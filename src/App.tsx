@@ -314,7 +314,7 @@ export default function App() {
       <motion.div
         animate={{
           boxShadow: `0 0 ${40 + (beatIntensity * 60)}px ${accentColor}10`,
-          borderColor: isPlaying ? '#fbbf24' : '#fbbf24aa'
+          borderColor: isPlaying ? '#581c87' : '#581c87aa'
         }}
         className="w-full max-w-md h-[850px] max-h-[90vh] player-chrome rounded-[48px] flex flex-col overflow-hidden relative z-10"
       >

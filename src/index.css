@@ -47,8 +47,8 @@
 .player-chrome {
   background: rgba(0, 0, 0, 0.8);
   backdrop-filter: blur(40px);
-  border: 2px solid #fbbf24;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 1), 0 0 20px rgba(251, 191, 36, 0.2);
+  border: 2px solid #581c87;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 1), 0 0 20px rgba(88, 28, 135, 0.2);
 }
 
 .glass-card {
