@@ -1,14 +1,14 @@
-import { GoogleGenAI, SchemaType } from "@google/genai";
+import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 
-let aiInstance: GoogleGenAI | null = null;
+let aiInstance: GoogleGenerativeAI | null = null;
 
-function getAI(): GoogleGenAI {
+function getAI(): GoogleGenerativeAI {
   if (!aiInstance) {
     const apiKey =
       (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY) ||
       (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) ||
       "";
-    aiInstance = new GoogleGenAI(apiKey);
+    aiInstance = new GoogleGenerativeAI(apiKey);
   }
   return aiInstance;
 }
