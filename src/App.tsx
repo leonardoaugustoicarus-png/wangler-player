@@ -290,7 +290,7 @@ export default function App() {
 
   return (
     <div
-      className="min-h-screen w-full flex flex-col items-center justify-center p-4 sm:p-8 relative bg-black border-[4px] border-[#fbbf24]"
+      className="min-h-screen w-full flex flex-col items-center justify-center p-4 sm:p-8 relative bg-black"
       style={{ '--accent-color': accentColor } as React.CSSProperties}
     >
       {/* Dynamic Atmospheric Background */}
