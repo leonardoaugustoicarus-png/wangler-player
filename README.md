@@ -31,3 +31,4 @@ O aplicativo utiliza uma linguagem visual moderna baseada em:
 ---
 Criado com ❤️ por **Ivan Wangler**
 # wangler-player
+# wangler-player
