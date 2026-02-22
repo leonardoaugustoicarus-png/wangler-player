@@ -1,14 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Search, Folder, Music2, Heart, MoreVertical, PlayCircle, Upload } from 'lucide-react';
 
 interface LibraryProps {
   accentColor: string;
   onSelectTrack: (file: File) => void;
+  onSelectMockTrack: (track: { title: string, artist: string }) => void;
 }
 
-export default function Library({ accentColor, onSelectTrack }: LibraryProps) {
+export default function Library({ accentColor, onSelectTrack, onSelectMockTrack }: LibraryProps) {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -16,6 +18,7 @@ export default function Library({ accentColor, onSelectTrack }: LibraryProps) {
       onSelectTrack(file);
     }
   };
+
   const tracks = [
     { id: 1, title: "Midnight City", artist: "M83", format: "FLAC 24/192", duration: "4:03" },
     { id: 2, title: "Starboy", artist: "The Weeknd", format: "DSD 128", duration: "3:50" },
@@ -26,34 +29,49 @@ export default function Library({ accentColor, onSelectTrack }: LibraryProps) {
     { id: 7, title: "Nightcall", artist: "Kavinsky", format: "FLAC 24/48", duration: "4:18" },
   ];
 
+  const filteredTracks = tracks.filter(t =>
+    t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    t.artist.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="flex flex-col h-full px-6 pt-4 pb-8 overflow-hidden">
       <div className="flex items-center justify-between mb-8">
         <h2 className="text-2xl font-display font-bold tracking-tight">Library</h2>
         <div className="flex space-x-2">
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={handleFileChange} 
-            className="hidden" 
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            className="hidden"
             accept="audio/*"
           />
-          <button 
+          <button
             onClick={() => fileInputRef.current?.click()}
             className="p-2.5 rounded-xl bg-white/5 text-white/40 hover:text-white hover:bg-white/10 transition-all"
+            title="Upload Local File"
           >
             <Upload size={18} />
           </button>
-          <button className="p-2.5 rounded-xl bg-white/5 text-white/40 hover:text-white hover:bg-white/10 transition-all">
-            <Search size={18} />
-          </button>
         </div>
+      </div>
+
+      {/* Search Bar */}
+      <div className="relative mb-6">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" size={14} />
+        <input
+          type="text"
+          placeholder="Search your library..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-xs focus:outline-none focus:border-accent/50 transition-colors"
+        />
       </div>
 
       {/* Categories */}
       <div className="flex space-x-3 mb-8 overflow-x-auto no-scrollbar pb-2">
         {['Tracks', 'Albums', 'Artists', 'Folders', 'Playlists'].map((cat, i) => (
-          <button 
+          <button
             key={cat}
             className={`px-5 py-2.5 rounded-xl text-[10px] uppercase tracking-widest font-display font-bold transition-all ${i === 0 ? 'bg-white text-black shadow-lg' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
           >
@@ -64,17 +82,20 @@ export default function Library({ accentColor, onSelectTrack }: LibraryProps) {
 
       {/* Track List */}
       <div className="flex-1 overflow-y-auto no-scrollbar space-y-1">
-        {tracks.map((track, i) => (
+        {filteredTracks.map((track, i) => (
           <motion.div
             key={track.id}
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: i * 0.05 }}
+            onClick={() => {
+              onSelectMockTrack({ title: track.title, artist: track.artist });
+            }}
             className="group flex items-center p-3 rounded-2xl hover:bg-white/5 transition-all cursor-pointer"
           >
             <div className="relative w-14 h-14 rounded-2xl overflow-hidden mr-4 shadow-lg">
-              <img 
-                src={`https://picsum.photos/seed/${track.id}/100/100`} 
+              <img
+                src={`https://picsum.photos/seed/${track.title}/100/100`}
                 alt={track.title}
                 className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity"
                 referrerPolicy="no-referrer"
@@ -94,12 +115,24 @@ export default function Library({ accentColor, onSelectTrack }: LibraryProps) {
 
             <div className="flex items-center space-x-3 ml-4">
               <span className="timecode text-[10px] text-white/30">{track.duration}</span>
-              <button className="text-white/20 hover:text-white transition-colors">
+              <button
+                className="text-white/20 hover:text-white transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  alert(`Opções para: ${track.title}`);
+                }}
+              >
                 <MoreVertical size={16} />
               </button>
             </div>
           </motion.div>
         ))}
+        {filteredTracks.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-20 text-white/20">
+            <Music2 size={48} className="mb-4 opacity-50" />
+            <p className="text-xs uppercase tracking-widest font-bold">No tracks found</p>
+          </div>
+        )}
       </div>
 
       {/* Storage Info */}

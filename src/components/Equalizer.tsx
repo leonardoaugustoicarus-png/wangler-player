@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { RotateCcw, Save, Activity } from 'lucide-react';
+import { RotateCcw, Save, Activity, FolderOpen } from 'lucide-react';
 
 interface EqualizerProps {
   accentColor: string;
@@ -19,6 +19,20 @@ export default function Equalizer({ accentColor, eqValues, setEqValues, eqBands,
     setEqValues(newValues);
   };
 
+  const savePreset = () => {
+    localStorage.setItem('audio_wangler_eq_preset', JSON.stringify(eqValues));
+    alert("EQ Preset Saved!");
+  };
+
+  const loadPreset = () => {
+    const saved = localStorage.getItem('audio_wangler_eq_preset');
+    if (saved) {
+      setEqValues(JSON.parse(saved));
+    } else {
+      alert("No saved preset found.");
+    }
+  };
+
   return (
     <div className="flex flex-col h-full px-6 pt-4 pb-8 overflow-y-auto no-scrollbar">
       <div className="flex items-center justify-between mb-8">
@@ -30,10 +44,22 @@ export default function Equalizer({ accentColor, eqValues, setEqValues, eqBands,
           <button
             onClick={() => setEqValues(eqBands.map(() => 0))}
             className="p-2 rounded-full bg-white/5 text-white/50 hover:text-white transition-colors"
+            title="Reset EQ"
           >
             <RotateCcw size={16} />
           </button>
-          <button className="p-2 rounded-full bg-white/5 text-white/50 hover:text-white transition-colors">
+          <button
+            onClick={loadPreset}
+            className="p-2 rounded-full bg-white/5 text-white/50 hover:text-white transition-colors"
+            title="Load Preset"
+          >
+            <FolderOpen size={16} />
+          </button>
+          <button
+            onClick={savePreset}
+            className="p-2 rounded-full bg-white/5 text-white/50 hover:text-white transition-colors"
+            title="Save Preset"
+          >
             <Save size={16} />
           </button>
         </div>

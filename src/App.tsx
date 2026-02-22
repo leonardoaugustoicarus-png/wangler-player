@@ -12,16 +12,17 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'player' | 'eq' | 'library' | 'arch' | 'dsp'>('player');
   const [isPlaying, setIsPlaying] = useState(false);
   const [accentColor, setAccentColor] = useState('#00d4ff');
-  const [audioSource, setAudioSource] = useState<string | null>(null);
-  const [trackInfo, setTrackInfo] = useState<{ title: string; artist: string; coverUrl?: string }>({
-    title: 'No Track Selected',
-    artist: 'Upload from Library',
-    coverUrl: 'https://i.postimg.cc/W4ND1Ypt/aguia.webp'
-  });
+  const [trackQueue, setTrackQueue] = useState<{ title: string; artist: string; coverUrl?: string; url?: string }[]>([]);
+  const [currentTrackIndex, setCurrentTrackIndex] = useState(-1);
+  const [shuffle, setShuffle] = useState(false);
+  const [repeat, setRepeat] = useState<'none' | 'one' | 'all'>('none');
+  const [volume, setVolume] = useState(0.8);
   const [autoPlay, setAutoPlay] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [isFetchingCover, setIsFetchingCover] = useState(false);
+
   const audioRef = React.useRef<HTMLAudioElement>(null);
 
   // EQ State
@@ -43,21 +44,29 @@ export default function App() {
     if (!searchQuery.trim()) return;
 
     setIsSearching(true);
-    setIsFetchingCover(true); // Ativa o loading na área do player
-
-    // Limpa a capa atual para mostrar o estado de busca
-    setTrackInfo(prev => ({ ...prev, coverUrl: undefined }));
+    setIsFetchingCover(true);
 
     const metadata = await fetchMusicMetadata(searchQuery);
     setIsSearching(false);
     setIsFetchingCover(false);
 
     if (metadata) {
-      setTrackInfo({
+      const newTrack = {
         title: metadata.titulo,
         artist: metadata.artista,
-        coverUrl: metadata.capa_url
-      });
+        coverUrl: metadata.capa_url,
+        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" // Mock stream for AI tracks
+      };
+
+      // Se não houver música tocando, adiciona e toca
+      if (currentTrackIndex === -1) {
+        setTrackQueue([newTrack]);
+        setCurrentTrackIndex(0);
+      } else {
+        // Adiciona à fila
+        setTrackQueue(prev => [...prev, newTrack]);
+      }
+
       setAccentColor(metadata.cor_dominante);
       setActiveTab('player');
       setShowSearch(false);
@@ -65,19 +74,21 @@ export default function App() {
     }
   };
 
-  const [isFetchingCover, setIsFetchingCover] = useState(false);
-
   // Handle track selection from Library
   const handleSelectTrack = async (file: File) => {
     const url = URL.createObjectURL(file);
     const title = file.name.replace(/\.[^/.]+$/, "");
 
-    setAudioSource(url);
-    setTrackInfo({
+    const newTrack = {
       title,
       artist: "Local File",
+      url,
       coverUrl: undefined
-    });
+    };
+
+    const newIndex = trackQueue.length;
+    setTrackQueue(prev => [...prev, newTrack]);
+    setCurrentTrackIndex(newIndex);
     setAutoPlay(true);
     setIsPlaying(false);
     setActiveTab('player');
@@ -87,10 +98,14 @@ export default function App() {
     try {
       const metadata = await fetchMusicMetadata(title);
       if (metadata) {
-        setTrackInfo({
-          title,
-          artist: metadata.artista !== title ? metadata.artista : "Local File",
-          coverUrl: metadata.capa_url
+        setTrackQueue(prev => {
+          const updated = [...prev];
+          updated[newIndex] = {
+            ...updated[newIndex],
+            artist: metadata.artista !== title ? metadata.artista : "Local File",
+            coverUrl: metadata.capa_url
+          };
+          return updated;
         });
         setAccentColor(metadata.cor_dominante);
       }
@@ -101,15 +116,74 @@ export default function App() {
     }
   };
 
+  const handleNext = () => {
+    if (trackQueue.length === 0) return;
+
+    if (repeat === 'one') {
+      setCurrentTrackIndex(currentTrackIndex); // Força re-render se necessário, ou apenas deixe o audio recomeçar
+      // No caso do audioRecomeçar, talvez seja melhor apenas setIsPlaying(false) depois setIsPlaying(true)
+      // Mas o App vai detectar a mesma URL e talvez não reinicie. 
+      // Vou mudar ligeiramente o estado para garantir o reinício.
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play();
+      }
+      return;
+    }
+
+    let nextIndex = currentTrackIndex + 1;
+    if (nextIndex >= trackQueue.length) {
+      nextIndex = repeat === 'all' ? 0 : currentTrackIndex;
+    }
+    if (shuffle) {
+      nextIndex = Math.floor(Math.random() * trackQueue.length);
+    }
+    setCurrentTrackIndex(nextIndex);
+  };
+
+  const handlePrev = () => {
+    if (trackQueue.length === 0) return;
+    let prevIndex = currentTrackIndex - 1;
+    if (prevIndex < 0) {
+      prevIndex = repeat === 'all' ? trackQueue.length - 1 : 0;
+    }
+    setCurrentTrackIndex(prevIndex);
+  };
+
+  const currentTrack = trackQueue[currentTrackIndex] || {
+    title: 'No Track Selected',
+    artist: 'Upload from Library',
+    coverUrl: 'https://i.postimg.cc/W4ND1Ypt/aguia.webp'
+  };
+
+  const nextTrack = trackQueue[currentTrackIndex + 1];
+
+  const handleSelectMockTrack = (track: { title: string, artist: string }) => {
+    const mockAudioUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"; // Exemplo de áudio real para teste
+    const newTrack = {
+      ...track,
+      url: mockAudioUrl,
+      coverUrl: `https://picsum.photos/seed/${track.title}/600/600`
+    };
+
+    setTrackQueue(prev => [...prev, newTrack]);
+    setCurrentTrackIndex(trackQueue.length);
+    setAutoPlay(true);
+    setIsPlaying(false);
+    setActiveTab('player');
+  };
+
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (audioSource) {
-        URL.revokeObjectURL(audioSource);
-      }
+      trackQueue.forEach(track => {
+        if (track.url?.startsWith('blob:')) {
+          URL.revokeObjectURL(track.url);
+        }
+      });
     };
-  }, [audioSource]);
+  }, [trackQueue]);
 
   return (
     <div
@@ -182,7 +256,10 @@ export default function App() {
             >
               <Info size={16} />
             </button>
-            <button className="p-2 rounded-xl glass-card text-white/60 hover:text-white transition-all">
+            <button
+              onClick={() => setActiveTab('dsp')}
+              className={`p-2 rounded-xl glass-card transition-all ${activeTab === 'dsp' ? 'bg-white text-black' : 'text-white/60 hover:text-white'}`}
+            >
               <Settings2 size={16} />
             </button>
           </div>
@@ -236,14 +313,24 @@ export default function App() {
                   isPlaying={isPlaying}
                   setIsPlaying={setIsPlaying}
                   accentColor={accentColor}
-                  audioSource={audioSource}
+                  audioSource={currentTrack.url || null}
                   audioRef={audioRef}
-                  trackInfo={trackInfo}
+                  trackInfo={currentTrack}
                   autoPlay={autoPlay}
                   onAutoPlayDone={() => setAutoPlay(false)}
                   isFetchingCover={isFetchingCover}
                   eqValues={eqValues}
                   dspSettings={dspSettings}
+                  onNext={handleNext}
+                  onPrev={handlePrev}
+                  shuffle={shuffle}
+                  setShuffle={setShuffle}
+                  repeat={repeat}
+                  setRepeat={setRepeat}
+                  volume={volume}
+                  setVolume={setVolume}
+                  onViewLibrary={() => setActiveTab('library')}
+                  nextTrack={nextTrack}
                 />
               </motion.div>
             )}
@@ -274,7 +361,11 @@ export default function App() {
                 transition={{ duration: 0.3 }}
                 className="absolute inset-0 h-full"
               >
-                <Library accentColor={accentColor} onSelectTrack={handleSelectTrack} />
+                <Library
+                  accentColor={accentColor}
+                  onSelectTrack={handleSelectTrack}
+                  onSelectMockTrack={handleSelectMockTrack}
+                />
               </motion.div>
             )}
             {activeTab === 'dsp' && (

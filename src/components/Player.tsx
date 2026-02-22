@@ -21,6 +21,16 @@ interface PlayerProps {
     crossfadeDuration: number;
     phaseCorrection: boolean;
   };
+  onNext: () => void;
+  onPrev: () => void;
+  shuffle: boolean;
+  setShuffle: (val: boolean) => void;
+  repeat: 'none' | 'one' | 'all';
+  setRepeat: (val: 'none' | 'one' | 'all') => void;
+  volume: number;
+  setVolume: (val: number) => void;
+  onViewLibrary: () => void;
+  nextTrack?: { title: string; artist: string; coverUrl?: string };
 }
 
 interface LyricLine {
@@ -43,7 +53,29 @@ const mockLyrics: LyricLine[] = [
   { time: 33000, text: "Hurry up, we're dreaming" },
 ];
 
-export default function Player({ isPlaying, setIsPlaying, accentColor, audioSource, audioRef, trackInfo, autoPlay, onAutoPlayDone, isFetchingCover, eqValues, dspSettings }: PlayerProps) {
+export default function Player({
+  isPlaying,
+  setIsPlaying,
+  accentColor,
+  audioSource,
+  audioRef,
+  trackInfo,
+  autoPlay,
+  onAutoPlayDone,
+  isFetchingCover,
+  eqValues,
+  dspSettings,
+  onNext,
+  onPrev,
+  shuffle,
+  setShuffle,
+  repeat,
+  setRepeat,
+  volume,
+  setVolume,
+  onViewLibrary,
+  nextTrack
+}: PlayerProps) {
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
   const [durationMs, setDurationMs] = useState(0);
   const [showLyrics, setShowLyrics] = useState(false);
@@ -155,6 +187,7 @@ export default function Player({ isPlaying, setIsPlaying, accentColor, audioSour
   // Sync audio element with state
   useEffect(() => {
     if (audioRef.current && audioSource) {
+      audioRef.current.volume = volume;
       if (isPlaying) {
         initAudioContext();
         audioRef.current.play().catch(e => {
@@ -165,7 +198,7 @@ export default function Player({ isPlaying, setIsPlaying, accentColor, audioSour
         audioRef.current.pause();
       }
     }
-  }, [isPlaying, audioSource, autoPlay]); // autoPlay added for safety
+  }, [isPlaying, audioSource, autoPlay, volume]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -209,9 +242,9 @@ export default function Player({ isPlaying, setIsPlaying, accentColor, audioSour
 
   const handleDragEnd = (_: any, info: any) => {
     if (info.offset.x > 100) {
-      console.log('Previous Track');
+      onPrev();
     } else if (info.offset.x < -100) {
-      console.log('Next Track / Swipe to Queue');
+      onNext();
     }
   };
 
@@ -337,7 +370,7 @@ export default function Player({ isPlaying, setIsPlaying, accentColor, audioSour
         src={audioSource || undefined}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
-        onEnded={() => setIsPlaying(false)}
+        onEnded={onNext}
         onCanPlay={() => {
           if (autoPlay) {
             initAudioContext();
@@ -381,53 +414,102 @@ export default function Player({ isPlaying, setIsPlaying, accentColor, audioSour
       </div>
 
       {/* Controls */}
-      <div className="mt-6 flex items-center justify-between px-4">
-        <button className="text-white/20 hover:text-white transition-colors">
-          <Shuffle size={16} />
-        </button>
-
-        <div className="flex items-center space-x-6">
-          <button className="text-white/60 hover:text-white transition-all hover:scale-110 active:scale-95">
-            <SkipBack size={24} fill="currentColor" />
-          </button>
-
-          <button
-            onClick={() => setIsPlaying(!isPlaying)}
-            className="w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 btn-neon hover:scale-105 active:scale-90"
-          >
-            {isPlaying ? (
-              <Pause size={24} fill="white" className="text-white" />
-            ) : (
-              <Play size={24} fill="white" className="text-white ml-1" />
-            )}
-          </button>
-
-          <button className="text-white/60 hover:text-white transition-all hover:scale-110 active:scale-95">
-            <SkipForward size={24} fill="currentColor" />
-          </button>
+      <div className="mt-6 flex flex-col space-y-4">
+        {/* Volume Slider - Mini overlay style */}
+        <div className="flex items-center space-x-3 px-4">
+          <Volume2 size={16} className="text-white/20" />
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={volume}
+            onChange={(e) => setVolume(parseFloat(e.target.value))}
+            className="flex-1 h-1 bg-white/5 rounded-full appearance-none accent-accent cursor-pointer"
+          />
         </div>
 
-        <button className="text-white/20 hover:text-white transition-colors">
-          <Repeat size={16} />
-        </button>
+        <div className="flex items-center justify-between px-4">
+          <button
+            onClick={() => setShuffle(!shuffle)}
+            className={`transition-colors ${shuffle ? 'text-accent' : 'text-white/20 hover:text-white'}`}
+          >
+            <Shuffle size={16} />
+          </button>
+
+          <div className="flex items-center space-x-6">
+            <button
+              onClick={onPrev}
+              className="text-white/60 hover:text-white transition-all hover:scale-110 active:scale-95"
+            >
+              <SkipBack size={24} fill="currentColor" />
+            </button>
+
+            <button
+              onClick={() => setIsPlaying(!isPlaying)}
+              className="w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 btn-neon hover:scale-105 active:scale-90"
+            >
+              {isPlaying ? (
+                <Pause size={24} fill="white" className="text-white" />
+              ) : (
+                <Play size={24} fill="white" className="text-white ml-1" />
+              )}
+            </button>
+
+            <button
+              onClick={onNext}
+              className="text-white/60 hover:text-white transition-all hover:scale-110 active:scale-95"
+            >
+              <SkipForward size={24} fill="currentColor" />
+            </button>
+          </div>
+
+          <button
+            onClick={() => {
+              const modes: ('none' | 'one' | 'all')[] = ['none', 'one', 'all'];
+              const nextIndex = (modes.indexOf(repeat) + 1) % modes.length;
+              setRepeat(modes[nextIndex]);
+            }}
+            className={`transition-colors relative ${repeat !== 'none' ? 'text-accent' : 'text-white/20 hover:text-white'}`}
+          >
+            <Repeat size={16} />
+            {repeat === 'one' && <span className="absolute -top-1 -right-1 text-[6px] font-bold">1</span>}
+          </button>
+        </div>
       </div>
 
       {/* Up Next Section */}
       <div className="mt-6 pt-3 border-t border-white/5">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-[8px] font-display font-bold uppercase tracking-[0.2em] text-white/40">Up Next</h3>
-          <button className="text-[8px] font-display font-bold uppercase tracking-[0.2em] text-accent">View All</button>
+          <button
+            onClick={onViewLibrary}
+            className="text-[8px] font-display font-bold uppercase tracking-[0.2em] text-accent"
+          >
+            View All
+          </button>
         </div>
-        <div className="flex items-center space-x-3 p-2 rounded-2xl glass-card border-white/5">
-          <div className="w-8 h-8 rounded-lg overflow-hidden">
-            <img src="https://picsum.photos/seed/next/100/100" alt="Next" className="w-full h-full object-cover opacity-60" referrerPolicy="no-referrer" />
+        {nextTrack ? (
+          <div className="flex items-center space-x-3 p-2 rounded-2xl glass-card border-white/5 cursor-pointer hover:bg-white/5 transition-colors" onClick={onNext}>
+            <div className="w-8 h-8 rounded-lg overflow-hidden">
+              <img
+                src={nextTrack.coverUrl || `https://picsum.photos/seed/${nextTrack.title}/100/100`}
+                alt="Next"
+                className="w-full h-full object-cover opacity-60"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-display font-bold truncate">{nextTrack.title}</p>
+              <p className="text-[8px] text-white/30 font-medium truncate">{nextTrack.artist}</p>
+            </div>
+            <Volume2 size={12} className="text-white/20" />
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-display font-bold truncate">Starboy</p>
-            <p className="text-[8px] text-white/30 font-medium truncate">The Weeknd • Starboy</p>
+        ) : (
+          <div className="flex items-center justify-center p-4 rounded-2xl border border-dashed border-white/5 text-[8px] uppercase tracking-widest text-white/20 font-bold">
+            Queue Finished
           </div>
-          <Volume2 size={12} className="text-white/20" />
-        </div>
+        )}
       </div>
     </div>
   );
