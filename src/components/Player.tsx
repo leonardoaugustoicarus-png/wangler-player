@@ -1,0 +1,345 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, useMotionValue, useTransform, AnimatePresence } from 'motion/react';
+import { Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, Volume2, Languages, Music2 } from 'lucide-react';
+import SpectrumAnalyzer from './SpectrumAnalyzer';
+
+interface PlayerProps {
+  isPlaying: boolean;
+  setIsPlaying: (playing: boolean) => void;
+  accentColor: string;
+  audioSource: string | null;
+  audioRef: React.RefObject<HTMLAudioElement | null>;
+  trackInfo: { title: string; artist: string; coverUrl?: string };
+  autoPlay?: boolean;
+  onAutoPlayDone?: () => void;
+}
+
+interface LyricLine {
+  time: number; // ms
+  text: string;
+}
+
+const mockLyrics: LyricLine[] = [
+  { time: 0, text: "You own the city" },
+  { time: 3000, text: "The city owns you" },
+  { time: 6000, text: "Midnight city" },
+  { time: 9000, text: "Waiting for the sun" },
+  { time: 12000, text: "To come and take us home" },
+  { time: 15000, text: "Looking at the stars" },
+  { time: 18000, text: "Waiting for a sign" },
+  { time: 21000, text: "Midnight city" },
+  { time: 24000, text: "The neon lights are calling" },
+  { time: 27000, text: "In the rhythm of the night" },
+  { time: 30000, text: "We are the dreamers" },
+  { time: 33000, text: "Hurry up, we're dreaming" },
+];
+
+export default function Player({ isPlaying, setIsPlaying, accentColor, audioSource, audioRef, trackInfo, autoPlay, onAutoPlayDone }: PlayerProps) {
+  const [currentTimeMs, setCurrentTimeMs] = useState(0);
+  const [durationMs, setDurationMs] = useState(0);
+  const [showLyrics, setShowLyrics] = useState(false);
+  const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
+  const lyricsRef = useRef<HTMLDivElement>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+
+  const x = useMotionValue(0);
+  const rotate = useTransform(x, [-100, 100], [-10, 10]);
+  const opacity = useTransform(x, [-150, -100, 0, 100, 150], [0, 0.5, 1, 0.5, 0]);
+
+  // Initialize Web Audio API
+  const initAudioContext = () => {
+    if (!audioCtxRef.current && audioRef.current) {
+      const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext);
+      const ctx = new AudioContextClass();
+      const analyserNode = ctx.createAnalyser();
+      analyserNode.fftSize = 256;
+
+      try {
+        const source = ctx.createMediaElementSource(audioRef.current);
+        source.connect(analyserNode);
+        analyserNode.connect(ctx.destination);
+
+        audioCtxRef.current = ctx;
+        sourceRef.current = source;
+        setAnalyser(analyserNode);
+      } catch (err) {
+        console.warn("Audio source already connected or failed to connect", err);
+      }
+    }
+
+    if (audioCtxRef.current?.state === 'suspended') {
+      audioCtxRef.current.resume();
+    }
+  };
+
+  // Sync audio element with state
+  useEffect(() => {
+    if (audioRef.current && audioSource) {
+      if (isPlaying) {
+        initAudioContext();
+        audioRef.current.play().catch(e => {
+          console.error("Playback failed", e);
+          setIsPlaying(false);
+        });
+      } else {
+        audioRef.current.pause();
+      }
+    }
+  }, [isPlaying, audioSource]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (audioCtxRef.current) {
+        audioCtxRef.current.close();
+      }
+    };
+  }, []);
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      setCurrentTimeMs(audioRef.current.currentTime * 1000);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+      setDurationMs(audioRef.current.duration * 1000);
+    }
+  };
+
+  // Sync scroll position
+  useEffect(() => {
+    if (showLyrics && lyricsRef.current) {
+      const activeLineIndex = mockLyrics.findIndex((l, i) =>
+        currentTimeMs >= l.time && (i === mockLyrics.length - 1 || currentTimeMs < mockLyrics[i + 1].time)
+      );
+
+      if (activeLineIndex !== -1) {
+        const activeElement = lyricsRef.current.children[activeLineIndex] as HTMLElement;
+        if (activeElement) {
+          lyricsRef.current.scrollTo({
+            top: activeElement.offsetTop - lyricsRef.current.clientHeight / 2 + activeElement.clientHeight / 2,
+            behavior: 'smooth'
+          });
+        }
+      }
+    }
+  }, [currentTimeMs, showLyrics]);
+
+  const handleDragEnd = (_: any, info: any) => {
+    if (info.offset.x > 100) {
+      console.log('Previous Track');
+    } else if (info.offset.x < -100) {
+      console.log('Next Track / Swipe to Queue');
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full px-8 pt-4 pb-8 relative overflow-hidden">
+      {/* Album Art Area */}
+      <div className="flex-1 flex flex-col items-center justify-start pt-4 relative">
+        <motion.div
+          style={{ x, rotate, opacity }}
+          drag="x"
+          dragConstraints={{ left: 0, right: 0 }}
+          onDragEnd={handleDragEnd}
+          className="relative w-full aspect-square max-w-[220px] group cursor-grab active:cursor-grabbing"
+        >
+          <div
+            className="absolute inset-0 rounded-[28px] blur-[30px] opacity-30 transition-colors duration-1000"
+            style={{ backgroundColor: accentColor }}
+          />
+
+          {trackInfo.coverUrl ? (
+            <img
+              src={trackInfo.coverUrl}
+              alt="Album Art"
+              className="w-full h-full object-cover rounded-[28px] shadow-[0_15px_40px_rgba(0,0,0,0.5)] relative z-10 border border-white/10"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <div className="w-full h-full rounded-[28px] bg-white/5 border border-white/10 flex items-center justify-center relative z-10 shadow-[0_15px_40px_rgba(0,0,0,0.2)]">
+              <Music2 size={64} className="text-white/10" />
+            </div>
+          )}
+        </motion.div>
+
+        {/* Lyrics Toggle Button */}
+        <button
+          onClick={() => setShowLyrics(!showLyrics)}
+          className={`absolute bottom-0 right-0 p-3 rounded-full transition-all z-30 ${showLyrics ? 'bg-white text-black' : 'bg-white/5 text-white/50 hover:text-white'}`}
+        >
+          <Languages size={18} />
+        </button>
+
+        {/* Floating Lyrics Layer (Glassmorphism) */}
+        <AnimatePresence>
+          {showLyrics && (
+            <motion.div
+              initial={{ opacity: 0, y: 20, backdropFilter: 'blur(0px)' }}
+              animate={{ opacity: 1, y: 0, backdropFilter: 'blur(40px)' }}
+              exit={{ opacity: 0, y: 20, backdropFilter: 'blur(0px)' }}
+              className="absolute inset-0 z-20 bg-black/80 rounded-3xl border border-white/10 flex flex-col p-8 overflow-hidden"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <span className="micro-label text-[10px] text-white/40">Synchronized Lyrics</span>
+                <span className="timecode text-[10px] text-emerald-400">±1ms Sync</span>
+              </div>
+
+              <div
+                ref={lyricsRef}
+                className="flex-1 overflow-y-auto no-scrollbar mask-fade-y"
+                style={{
+                  maskImage: 'linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%)',
+                  WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%)'
+                }}
+              >
+                <div className="py-[50%] space-y-8">
+                  {mockLyrics.map((line, i) => {
+                    const isActive = currentTimeMs >= line.time && (i === mockLyrics.length - 1 || currentTimeMs < mockLyrics[i + 1].time);
+                    return (
+                      <motion.p
+                        key={i}
+                        animate={{
+                          opacity: isActive ? 1 : 0.2,
+                          scale: isActive ? 1.05 : 1,
+                          color: isActive ? '#fff' : 'rgba(255,255,255,0.5)'
+                        }}
+                        className={`text-xl font-medium leading-relaxed transition-all duration-300 ${isActive ? 'text-shadow-glow' : ''}`}
+                        style={{ textShadow: isActive ? `0 0 20px ${accentColor}40` : 'none' }}
+                      >
+                        {line.text}
+                      </motion.p>
+                    );
+                  })}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Track Info */}
+        <div className="mt-4 text-center">
+          <motion.h2
+            key={trackInfo.title}
+            initial={{ y: 10, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="text-xl font-display font-bold tracking-tight text-glow shadow-accent/20"
+          >
+            {trackInfo.title}
+          </motion.h2>
+          <motion.p
+            key={trackInfo.artist}
+            initial={{ y: 10, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.1 }}
+            className="text-white/30 text-[9px] mt-0.5 uppercase tracking-[0.3em] font-mono font-medium"
+          >
+            {trackInfo.artist}
+          </motion.p>
+        </div>
+      </div>
+
+      {/* Hidden Audio Element */}
+      <audio
+        ref={audioRef}
+        src={audioSource || undefined}
+        onTimeUpdate={handleTimeUpdate}
+        onLoadedMetadata={handleLoadedMetadata}
+        onEnded={() => setIsPlaying(false)}
+        onCanPlay={() => {
+          if (autoPlay) {
+            initAudioContext();
+            audioRef.current?.play().catch(e => {
+              console.error('Playback failed', e);
+              setIsPlaying(false);
+            });
+            setIsPlaying(true);
+            onAutoPlayDone?.();
+          }
+        }}
+      />
+
+      {/* Spectrum Analyzer */}
+      <div className="my-6">
+        <SpectrumAnalyzer isPlaying={isPlaying} accentColor={accentColor} analyser={analyser} />
+      </div>
+
+      {/* Progress Slider */}
+      <div className="space-y-3 px-2">
+        <div className="relative h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+          <motion.div
+            className="absolute top-0 left-0 h-full shadow-[0_0_15px_rgba(0,212,255,0.5)]"
+            style={{ width: `${durationMs > 0 ? (currentTimeMs / durationMs) * 100 : 0}%`, backgroundColor: accentColor }}
+          />
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="timecode text-white/30">
+            {Math.floor(currentTimeMs / 60000)}:
+            {Math.floor((currentTimeMs % 60000) / 1000).toString().padStart(2, '0')}
+          </span>
+          <div className="flex items-center space-x-3">
+            <span className="micro-label px-2 py-0.5 rounded-lg bg-accent/10 border border-accent/20 text-accent text-[8px]">HI-RES</span>
+            <span className="micro-label px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-white/30 text-[8px]">24-BIT</span>
+          </div>
+          <span className="timecode text-white/30">
+            {Math.floor(durationMs / 60000)}:
+            {Math.floor((durationMs % 60000) / 1000).toString().padStart(2, '0')}
+          </span>
+        </div>
+      </div>
+
+      {/* Controls */}
+      <div className="mt-6 flex items-center justify-between px-4">
+        <button className="text-white/20 hover:text-white transition-colors">
+          <Shuffle size={16} />
+        </button>
+
+        <div className="flex items-center space-x-6">
+          <button className="text-white/60 hover:text-white transition-all hover:scale-110 active:scale-95">
+            <SkipBack size={24} fill="currentColor" />
+          </button>
+
+          <button
+            onClick={() => setIsPlaying(!isPlaying)}
+            className="w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 btn-neon hover:scale-105 active:scale-90"
+          >
+            {isPlaying ? (
+              <Pause size={24} fill="white" className="text-white" />
+            ) : (
+              <Play size={24} fill="white" className="text-white ml-1" />
+            )}
+          </button>
+
+          <button className="text-white/60 hover:text-white transition-all hover:scale-110 active:scale-95">
+            <SkipForward size={24} fill="currentColor" />
+          </button>
+        </div>
+
+        <button className="text-white/20 hover:text-white transition-colors">
+          <Repeat size={16} />
+        </button>
+      </div>
+
+      {/* Up Next Section */}
+      <div className="mt-6 pt-3 border-t border-white/5">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-[8px] font-display font-bold uppercase tracking-[0.2em] text-white/40">Up Next</h3>
+          <button className="text-[8px] font-display font-bold uppercase tracking-[0.2em] text-accent">View All</button>
+        </div>
+        <div className="flex items-center space-x-3 p-2 rounded-2xl glass-card border-white/5">
+          <div className="w-8 h-8 rounded-lg overflow-hidden">
+            <img src="https://picsum.photos/seed/next/100/100" alt="Next" className="w-full h-full object-cover opacity-60" referrerPolicy="no-referrer" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-display font-bold truncate">Starboy</p>
+            <p className="text-[8px] text-white/30 font-medium truncate">The Weeknd • Starboy</p>
+          </div>
+          <Volume2 size={12} className="text-white/20" />
+        </div>
+      </div>
+    </div>
+  );
+}
