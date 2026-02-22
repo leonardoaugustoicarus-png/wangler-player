@@ -24,14 +24,33 @@ export default function App() {
   const [showSearch, setShowSearch] = useState(false);
   const audioRef = React.useRef<HTMLAudioElement>(null);
 
+  // EQ State
+  const eqBands = [20, 40, 63, 100, 160, 250, 400, 630, 1000, 1600, 2500, 4000, 6300, 10000, 20000];
+  const [eqValues, setEqValues] = useState(eqBands.map(() => 0));
+
+  // DSP State
+  const [dspSettings, setDspSettings] = useState({
+    aiUpsampling: true,
+    upsamplingLevel: 2,
+    smartCrossfade: true,
+    crossfadeDuration: 3.5,
+    phaseCorrection: true
+  });
+
   // Handle AI Music Search
   const handleAISearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
 
     setIsSearching(true);
+    setIsFetchingCover(true); // Ativa o loading na área do player
+
+    // Limpa a capa atual para mostrar o estado de busca
+    setTrackInfo(prev => ({ ...prev, coverUrl: undefined }));
+
     const metadata = await fetchMusicMetadata(searchQuery);
     setIsSearching(false);
+    setIsFetchingCover(false);
 
     if (metadata) {
       setTrackInfo({
@@ -223,6 +242,8 @@ export default function App() {
                   autoPlay={autoPlay}
                   onAutoPlayDone={() => setAutoPlay(false)}
                   isFetchingCover={isFetchingCover}
+                  eqValues={eqValues}
+                  dspSettings={dspSettings}
                 />
               </motion.div>
             )}
@@ -235,7 +256,13 @@ export default function App() {
                 transition={{ duration: 0.3 }}
                 className="absolute inset-0 h-full"
               >
-                <Equalizer accentColor={accentColor} />
+                <Equalizer
+                  accentColor={accentColor}
+                  eqValues={eqValues}
+                  setEqValues={setEqValues}
+                  eqBands={eqBands}
+                  phaseCorrectionEnabled={dspSettings.phaseCorrection}
+                />
               </motion.div>
             )}
             {activeTab === 'library' && (
@@ -259,7 +286,11 @@ export default function App() {
                 transition={{ duration: 0.3 }}
                 className="absolute inset-0 h-full"
               >
-                <DSPSettings accentColor={accentColor} />
+                <DSPSettings
+                  accentColor={accentColor}
+                  dspSettings={dspSettings}
+                  setDspSettings={setDspSettings}
+                />
               </motion.div>
             )}
             {activeTab === 'arch' && (

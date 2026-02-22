@@ -13,6 +13,14 @@ interface PlayerProps {
   autoPlay?: boolean;
   onAutoPlayDone?: () => void;
   isFetchingCover?: boolean;
+  eqValues: number[];
+  dspSettings: {
+    aiUpsampling: boolean;
+    upsamplingLevel: number;
+    smartCrossfade: boolean;
+    crossfadeDuration: number;
+    phaseCorrection: boolean;
+  };
 }
 
 interface LyricLine {
@@ -35,7 +43,7 @@ const mockLyrics: LyricLine[] = [
   { time: 33000, text: "Hurry up, we're dreaming" },
 ];
 
-export default function Player({ isPlaying, setIsPlaying, accentColor, audioSource, audioRef, trackInfo, autoPlay, onAutoPlayDone, isFetchingCover }: PlayerProps) {
+export default function Player({ isPlaying, setIsPlaying, accentColor, audioSource, audioRef, trackInfo, autoPlay, onAutoPlayDone, isFetchingCover, eqValues, dspSettings }: PlayerProps) {
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
   const [durationMs, setDurationMs] = useState(0);
   const [showLyrics, setShowLyrics] = useState(false);
@@ -43,22 +51,67 @@ export default function Player({ isPlaying, setIsPlaying, accentColor, audioSour
   const lyricsRef = useRef<HTMLDivElement>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const filtersRef = useRef<BiquadFilterNode[]>([]);
+  const compressorRef = useRef<DynamicsCompressorNode | null>(null);
+  const upsampleFilterRef = useRef<BiquadFilterNode | null>(null);
 
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-100, 100], [-10, 10]);
   const opacity = useTransform(x, [-150, -100, 0, 100, 150], [0, 0.5, 1, 0.5, 0]);
+
+  // Audio bands for EQ
+  const bands = [20, 40, 63, 100, 160, 250, 400, 630, 1000, 1600, 2500, 4000, 6300, 10000, 20000];
 
   // Initialize Web Audio API
   const initAudioContext = () => {
     if (!audioCtxRef.current && audioRef.current) {
       const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext);
       const ctx = new AudioContextClass();
+
+      // Analyser Node
       const analyserNode = ctx.createAnalyser();
       analyserNode.fftSize = 256;
 
       try {
         const source = ctx.createMediaElementSource(audioRef.current);
-        source.connect(analyserNode);
+
+        // Create EQ filters
+        const filters = bands.map((freq, i) => {
+          const filter = ctx.createBiquadFilter();
+          filter.type = i === 0 ? 'lowshelf' : i === bands.length - 1 ? 'highshelf' : 'peaking';
+          filter.frequency.value = freq;
+          filter.Q.value = 1.41;
+          filter.gain.value = eqValues[i];
+          return filter;
+        });
+        filtersRef.current = filters;
+
+        // Create DSP Compressor
+        const compressor = ctx.createDynamicsCompressor();
+        compressor.threshold.setValueAtTime(-24, ctx.currentTime);
+        compressor.knee.setValueAtTime(30, ctx.currentTime);
+        compressor.ratio.setValueAtTime(3, ctx.currentTime);
+        compressor.attack.setValueAtTime(0.003, ctx.currentTime);
+        compressor.release.setValueAtTime(0.25, ctx.currentTime);
+        compressorRef.current = compressor;
+
+        // Create Neural Upsampling Filter (Simulation)
+        const upsampleFilter = ctx.createBiquadFilter();
+        upsampleFilter.type = 'highshelf';
+        upsampleFilter.frequency.value = 16000;
+        upsampleFilter.gain.value = dspSettings.aiUpsampling ? (dspSettings.upsamplingLevel * 1.5) : 0;
+        upsampleFilterRef.current = upsampleFilter;
+
+        // Connect Chain: Source -> Filters[0...N] -> Upsample -> Compressor -> Analyser -> Destination
+        let lastNode: AudioNode = source;
+        filters.forEach(filter => {
+          lastNode.connect(filter);
+          lastNode = filter;
+        });
+
+        lastNode.connect(upsampleFilter);
+        upsampleFilter.connect(compressor);
+        compressor.connect(analyserNode);
         analyserNode.connect(ctx.destination);
 
         audioCtxRef.current = ctx;
@@ -74,6 +127,31 @@ export default function Player({ isPlaying, setIsPlaying, accentColor, audioSour
     }
   };
 
+  // Sync EQ values in real time
+  useEffect(() => {
+    if (filtersRef.current.length > 0) {
+      eqValues.forEach((val, i) => {
+        if (filtersRef.current[i]) {
+          filtersRef.current[i].gain.setTargetAtTime(val, audioCtxRef.current?.currentTime || 0, 0.05);
+        }
+      });
+    }
+  }, [eqValues]);
+
+  // Sync DSP settings
+  useEffect(() => {
+    if (upsampleFilterRef.current) {
+      const gain = dspSettings.aiUpsampling ? (dspSettings.upsamplingLevel * 1.5) : 0;
+      upsampleFilterRef.current.gain.setTargetAtTime(gain, audioCtxRef.current?.currentTime || 0, 0.1);
+    }
+
+    if (compressorRef.current) {
+      // Subtle mastering effect
+      const ratio = dspSettings.phaseCorrection ? 4 : 2;
+      compressorRef.current.ratio.setTargetAtTime(ratio, audioCtxRef.current?.currentTime || 0, 0.1);
+    }
+  }, [dspSettings]);
+
   // Sync audio element with state
   useEffect(() => {
     if (audioRef.current && audioSource) {
@@ -87,7 +165,7 @@ export default function Player({ isPlaying, setIsPlaying, accentColor, audioSour
         audioRef.current.pause();
       }
     }
-  }, [isPlaying, audioSource]);
+  }, [isPlaying, audioSource, autoPlay]); // autoPlay added for safety
 
   // Cleanup on unmount
   useEffect(() => {
@@ -154,9 +232,14 @@ export default function Player({ isPlaying, setIsPlaying, accentColor, audioSour
           />
 
           {isFetchingCover ? (
-            <div className="w-full h-full rounded-[28px] bg-white/5 border border-white/10 flex flex-col items-center justify-center relative z-10 shadow-[0_15px_40px_rgba(0,0,0,0.2)] gap-3">
-              <Loader2 size={40} className="animate-spin" style={{ color: accentColor }} />
-              <span className="text-[9px] font-mono uppercase tracking-widest text-white/30">Buscando capa...</span>
+            <div className="w-full h-full rounded-[28px] bg-white/5 border border-white/20 flex flex-col items-center justify-center relative z-10 shadow-[0_15px_40px_rgba(0,0,0,0.4)] gap-4 backdrop-blur-md">
+              <Loader2 size={42} className="animate-spin" style={{ color: accentColor, filter: `drop-shadow(0 0 12px ${accentColor})` }} />
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] font-display font-bold uppercase tracking-[0.3em] text-white animate-pulse" style={{ textShadow: `0 0 15px ${accentColor}` }}>
+                  Buscando capa...
+                </span>
+                <span className="text-[7px] font-mono uppercase tracking-widest text-white/30 mt-2">Gemini AI Engine</span>
+              </div>
             </div>
           ) : trackInfo.coverUrl ? (
             <img
