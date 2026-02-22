@@ -46,19 +46,42 @@ export default function App() {
     }
   };
 
+  const [isFetchingCover, setIsFetchingCover] = useState(false);
+
   // Handle track selection from Library
-  const handleSelectTrack = (file: File) => {
+  const handleSelectTrack = async (file: File) => {
     const url = URL.createObjectURL(file);
+    const title = file.name.replace(/\.[^/.]+$/, "");
+
     setAudioSource(url);
     setTrackInfo({
-      title: file.name.replace(/\.[^/.]+$/, ""),
+      title,
       artist: "Local File",
       coverUrl: undefined
     });
     setAutoPlay(true);
-    setIsPlaying(false); // Reset, Player will start when audio is ready
+    setIsPlaying(false);
     setActiveTab('player');
+
+    // Busca automática de capa via Gemini
+    setIsFetchingCover(true);
+    try {
+      const metadata = await fetchMusicMetadata(title);
+      if (metadata) {
+        setTrackInfo({
+          title,
+          artist: metadata.artista !== title ? metadata.artista : "Local File",
+          coverUrl: metadata.capa_url
+        });
+        setAccentColor(metadata.cor_dominante);
+      }
+    } catch (err) {
+      console.warn("Não foi possível buscar a capa:", err);
+    } finally {
+      setIsFetchingCover(false);
+    }
   };
+
 
   // Cleanup on unmount
   useEffect(() => {
@@ -199,6 +222,7 @@ export default function App() {
                   trackInfo={trackInfo}
                   autoPlay={autoPlay}
                   onAutoPlayDone={() => setAutoPlay(false)}
+                  isFetchingCover={isFetchingCover}
                 />
               </motion.div>
             )}

@@ -1,6 +1,17 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || "" });
+let aiInstance: GoogleGenAI | null = null;
+
+function getAI(): GoogleGenAI {
+  if (!aiInstance) {
+    const apiKey =
+      (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY) ||
+      (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) ||
+      "";
+    aiInstance = new GoogleGenAI({ apiKey });
+  }
+  return aiInstance;
+}
 
 export interface MusicMetadata {
   titulo: string;
@@ -11,7 +22,7 @@ export interface MusicMetadata {
 
 export async function fetchMusicMetadata(query: string): Promise<MusicMetadata | null> {
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
       model: "gemini-2.0-flash",
       contents: `Processar solicitação de música: "${query}". Retornar metadados precisos.`,
       config: {

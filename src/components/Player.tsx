@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useMotionValue, useTransform, AnimatePresence } from 'motion/react';
-import { Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, Volume2, Languages, Music2 } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, Volume2, Languages, Music2, Loader2 } from 'lucide-react';
 import SpectrumAnalyzer from './SpectrumAnalyzer';
 
 interface PlayerProps {
@@ -12,6 +12,7 @@ interface PlayerProps {
   trackInfo: { title: string; artist: string; coverUrl?: string };
   autoPlay?: boolean;
   onAutoPlayDone?: () => void;
+  isFetchingCover?: boolean;
 }
 
 interface LyricLine {
@@ -34,7 +35,7 @@ const mockLyrics: LyricLine[] = [
   { time: 33000, text: "Hurry up, we're dreaming" },
 ];
 
-export default function Player({ isPlaying, setIsPlaying, accentColor, audioSource, audioRef, trackInfo, autoPlay, onAutoPlayDone }: PlayerProps) {
+export default function Player({ isPlaying, setIsPlaying, accentColor, audioSource, audioRef, trackInfo, autoPlay, onAutoPlayDone, isFetchingCover }: PlayerProps) {
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
   const [durationMs, setDurationMs] = useState(0);
   const [showLyrics, setShowLyrics] = useState(false);
@@ -152,7 +153,12 @@ export default function Player({ isPlaying, setIsPlaying, accentColor, audioSour
             style={{ backgroundColor: accentColor }}
           />
 
-          {trackInfo.coverUrl ? (
+          {isFetchingCover ? (
+            <div className="w-full h-full rounded-[28px] bg-white/5 border border-white/10 flex flex-col items-center justify-center relative z-10 shadow-[0_15px_40px_rgba(0,0,0,0.2)] gap-3">
+              <Loader2 size={40} className="animate-spin" style={{ color: accentColor }} />
+              <span className="text-[9px] font-mono uppercase tracking-widest text-white/30">Buscando capa...</span>
+            </div>
+          ) : trackInfo.coverUrl ? (
             <img
               src={trackInfo.coverUrl}
               alt="Album Art"
