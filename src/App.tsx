@@ -57,46 +57,56 @@ export default function App() {
   // Persistence: Load on mount
   useEffect(() => {
     // Service Worker Registration
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').then(reg => {
-          console.log('SW Registered', reg);
-        }).catch(err => {
-          console.log('SW Registration failed', err);
-        });
+    if ('serviceWorker' in navigator && window.location.protocol === 'https:' || window.location.hostname === 'localhost') {
+      navigator.serviceWorker.register('/sw.js').then(reg => {
+        console.log('SW Registered', reg);
+      }).catch(err => {
+        console.log('SW Registration failed', err);
       });
     }
 
     // Install Prompt Listener
-    const handleBeforeInstallPrompt = (e: Event) => {
+    const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
       setIsInstallable(true);
     };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt as any);
     const savedState = localStorage.getItem(STORAGE_KEY);
     if (savedState) {
       try {
         const parsed = JSON.parse(savedState);
-        if (parsed.volume !== undefined) setVolume(parsed.volume);
-        if (parsed.shuffle !== undefined) setShuffle(parsed.shuffle);
-        if (parsed.repeat !== undefined) setRepeat(parsed.repeat);
-        // Blob URLs won't work after refresh, so we clean them up from the saved queue
-        if (parsed.trackQueue) {
-          const cleanedQueue = parsed.trackQueue.map((t: any) => ({
-            ...t,
-            url: t.url?.startsWith('blob:') ? undefined : t.url
-          }));
-          setTrackQueue(cleanedQueue);
+        if (parsed && typeof parsed === 'object') {
+          if (parsed.volume !== undefined) setVolume(Number(parsed.volume));
+          if (parsed.shuffle !== undefined) setShuffle(Boolean(parsed.shuffle));
+          if (parsed.repeat) setRepeat(parsed.repeat);
+          if (Array.isArray(parsed.trackQueue)) {
+            const cleanedQueue = parsed.trackQueue.map((t: any) => {
+              if (t && typeof t === 'object') {
+                return {
+                  ...t,
+                  url: t.url?.startsWith('blob:') ? undefined : t.url
+                };
+              }
+              return null;
+            }).filter(Boolean);
+            setTrackQueue(cleanedQueue as any);
+          }
+          if (parsed.currentTrackIndex !== undefined) setCurrentTrackIndex(Number(parsed.currentTrackIndex));
+          if (parsed.accentColor && typeof parsed.accentColor === 'string') setAccentColor(parsed.accentColor);
+          if (parsed.dspSettings && typeof parsed.dspSettings === 'object') {
+            setDspSettings(prev => ({ ...prev, ...parsed.dspSettings }));
+          }
         }
-        if (parsed.currentTrackIndex !== undefined) setCurrentTrackIndex(parsed.currentTrackIndex);
-        if (parsed.accentColor) setAccentColor(parsed.accentColor);
-        if (parsed.dspSettings) setDspSettings(prev => ({ ...prev, ...parsed.dspSettings }));
       } catch (e) {
         console.error("Failed to load state", e);
       }
     }
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt as any);
+    };
   }, []);
 
   // Persistence: Save on change
@@ -118,7 +128,6 @@ export default function App() {
     e.preventDefault();
     if (!searchQuery.trim()) return;
 
-    setIsSearching(true);
     setIsSearching(true);
     const metadata = await fetchMusicMetadata(searchQuery);
     setIsSearching(false);
@@ -353,7 +362,7 @@ export default function App() {
       {/* Main App Container */}
       <motion.div
         animate={{
-          boxShadow: `0 0 ${40 + (beatIntensity * 60)}px ${accentColor}10`,
+          boxShadow: `0 0 ${40 + (Math.max(0, beatIntensity) * 60)}px ${(accentColor || '#00d4ff')}10`,
           borderColor: isPlaying ? '#581c87' : '#581c87aa'
         }}
         className="w-full max-w-md h-[850px] max-h-[90vh] player-chrome rounded-[48px] flex flex-col overflow-hidden relative z-10"

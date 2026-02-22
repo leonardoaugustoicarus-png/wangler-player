@@ -21,11 +21,11 @@
   .text-glow {
     text-shadow: 0 0 15px var(--tw-shadow-color);
   }
-  
+
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
-  
+
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -47,6 +47,7 @@
 .player-chrome {
   background: rgba(0, 0, 0, 0.8);
   backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
   border: 2px solid #581c87;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 1), 0 0 20px rgba(88, 28, 135, 0.2);
 }
