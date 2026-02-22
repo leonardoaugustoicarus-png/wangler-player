@@ -22,6 +22,7 @@ export default function App() {
     coverUrl?: string;
     url?: string;
     lyrics?: { time: number; text: string }[];
+    isFetchingMetadata?: boolean;
   }[]>([]);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(-1);
   const [shuffle, setShuffle] = useState(false);
@@ -31,7 +32,6 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
-  const [isFetchingCover, setIsFetchingCover] = useState(false);
   const [beatIntensity, setBeatIntensity] = useState(0);
 
   const audioRef1 = React.useRef<HTMLAudioElement>(null);
@@ -119,19 +119,18 @@ export default function App() {
     if (!searchQuery.trim()) return;
 
     setIsSearching(true);
-    setIsFetchingCover(true);
-
+    setIsSearching(true);
     const metadata = await fetchMusicMetadata(searchQuery);
     setIsSearching(false);
-    setIsFetchingCover(false);
 
     if (metadata) {
       const newTrack = {
         title: metadata.titulo,
         artist: metadata.artista,
         coverUrl: metadata.capa_url,
-        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3", // Mock stream for AI tracks
-        lyrics: metadata.lyrics
+        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+        lyrics: metadata.lyrics,
+        isFetchingMetadata: false
       };
 
       // Se não houver música tocando, adiciona e toca
@@ -159,7 +158,8 @@ export default function App() {
       title,
       artist: "Local File",
       url,
-      coverUrl: undefined
+      coverUrl: undefined,
+      isFetchingMetadata: true
     };
 
     const newIndex = trackQueue.length;
@@ -170,7 +170,6 @@ export default function App() {
     setActiveTab('player');
 
     // Busca automática de capa via Gemini
-    setIsFetchingCover(true);
     try {
       const metadata = await fetchMusicMetadata(title);
       if (metadata) {
@@ -180,16 +179,26 @@ export default function App() {
             ...updated[newIndex],
             artist: metadata.artista !== title ? metadata.artista : "Local File",
             coverUrl: metadata.capa_url,
-            lyrics: metadata.lyrics
+            lyrics: metadata.lyrics,
+            isFetchingMetadata: false
           };
           return updated;
         });
         setAccentColor(metadata.cor_dominante);
+      } else {
+        setTrackQueue(prev => {
+          const updated = [...prev];
+          if (updated[newIndex]) updated[newIndex].isFetchingMetadata = false;
+          return updated;
+        });
       }
     } catch (err) {
       console.warn("Não foi possível buscar a capa:", err);
-    } finally {
-      setIsFetchingCover(false);
+      setTrackQueue(prev => {
+        const updated = [...prev];
+        if (updated[newIndex]) updated[newIndex].isFetchingMetadata = false;
+        return updated;
+      });
     }
   };
 
@@ -461,9 +470,9 @@ export default function App() {
                   audioSource={currentTrack.url || null}
                   audioRef={activeAudioRef === 1 ? audioRef1 : audioRef2}
                   trackInfo={currentTrack}
+                  isFetchingCover={!!currentTrack.isFetchingMetadata}
                   autoPlay={autoPlay}
                   onAutoPlayDone={() => setAutoPlay(false)}
-                  isFetchingCover={isFetchingCover}
                   eqValues={eqValues}
                   dspSettings={dspSettings}
                   onNext={handleNext}
