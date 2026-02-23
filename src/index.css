@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -7,19 +7,22 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
   --color-accent: var(--accent-color, #00d4ff);
-  --color-midnight: #000000;
+  --color-midnight: #020202;
   --color-deep-blue: #050505;
+  
+  --shadow-premium: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  --shadow-neon: 0 0 20px var(--accent-color, rgba(0, 212, 255, 0.4));
 }
 
 @layer base {
   body {
-    @apply bg-black text-white font-sans antialiased;
+    @apply bg-midnight text-white font-sans antialiased overflow-hidden selection:bg-accent/30;
   }
 }
 
 @layer utilities {
   .text-glow {
-    text-shadow: 0 0 15px var(--tw-shadow-color);
+    text-shadow: 0 0 15px var(--tw-shadow-color, currentColor);
   }
 
   .no-scrollbar::-webkit-scrollbar {
@@ -34,6 +37,18 @@
   .mask-fade-y {
     mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
   }
+  
+  .glass-premium {
+    @apply bg-white/[0.03] backdrop-blur-[40px] border border-white/[0.05] shadow-premium;
+  }
+  
+  .glass-border-light {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .glow-border {
+    @apply border border-accent/20 shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)];
+  }
 }
 
 .atmosphere {
@@ -41,32 +56,57 @@
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  transition: background 1.5s ease;
+  background: radial-gradient(circle at 50% 50%, var(--accent-color, #00d4ff10) 0%, #000 100%);
+  opacity: 0.6;
+  transition: all 2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.atmosphere::after {
+  content: '';
+  position: absolute;
+  inset: -50%;
+  background: 
+    radial-gradient(circle at 20% 30%, var(--accent-color, #00d4ff20) 0%, transparent 40%),
+    radial-gradient(circle at 80% 70%, #581c8715 0%, transparent 40%);
+  filter: blur(80px);
+  animation: atmosphere-drift 30s infinite alternate ease-in-out;
+}
+
+@keyframes atmosphere-drift {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(5%, 5%) scale(1.1); }
 }
 
 .player-chrome {
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(40px);
-  -webkit-backdrop-filter: blur(40px);
-  border: 2px solid #581c87;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 1), 0 0 20px rgba(88, 28, 135, 0.2);
+  @apply bg-black/80 backdrop-blur-[60px] border-2 border-accent/20 shadow-premium;
 }
 
 .glass-card {
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  @apply bg-white/[0.04] backdrop-blur-[25px] border border-white/[0.06] hover:border-white/[0.1] transition-all duration-300;
 }
 
 .btn-neon {
-  background: linear-gradient(135deg, #00d4ff 0%, #0072ff 100%);
-  box-shadow: 0 0 20px rgba(0, 212, 255, 0.4);
+  @apply relative overflow-hidden transition-all duration-300;
+  background: linear-gradient(135deg, var(--accent-color, #00d4ff) 0%, #0072ff 100%);
+  box-shadow: 0 8px 32px var(--accent-color, rgba(0, 212, 255, 0.4));
+}
+
+.btn-neon:hover {
+  @apply scale-105;
+  box-shadow: 0 12px 48px var(--accent-color, rgba(0, 212, 255, 0.6));
 }
 
 .micro-label {
-  @apply font-mono uppercase tracking-[0.2em] text-[9px] font-medium;
+  @apply font-mono uppercase tracking-[0.25em] text-[8px] font-bold opacity-60;
 }
 
 .timecode {
-  @apply font-mono text-[10px] tracking-tighter;
+  @apply font-mono text-[10px] tracking-tight opacity-40;
+}
+
+.title-premium {
+  @apply font-display font-extrabold tracking-tight;
+  background: linear-gradient(to bottom, #fff 0%, #aaa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }

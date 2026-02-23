@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Settings2, ListMusic, Info, Zap, Search, Loader2 } from 'lucide-react';
+import { Settings2, ListMusic, Info, Zap, Search, Loader2, Activity } from 'lucide-react';
 import Player from './components/Player';
 import Equalizer from './components/Equalizer';
 import Library from './components/Library';
@@ -12,8 +12,9 @@ import { audioCore } from './services/audioCore';
 export default function App() {
   // Constants
   const STORAGE_KEY = 'audio_wangler_state';
+  const accentPresets = ['#00d4ff', '#ff0080', '#581c87', '#00ff80', '#ff8000', '#ffffff', '#ffff00', '#ff0000'];
 
-  const [activeTab, setActiveTab] = useState<'player' | 'eq' | 'library' | 'arch' | 'dsp'>('player');
+  const [activeTab, setActiveTab] = useState<'player' | 'eq' | 'library' | 'arch' | 'dsp' | 'settings'>('player');
   const [isPlaying, setIsPlaying] = useState(false);
   const [accentColor, setAccentColor] = useState('#00d4ff');
   const [trackQueue, setTrackQueue] = useState<{
@@ -370,149 +371,53 @@ export default function App() {
 
   return (
     <div
-      className="min-h-screen w-full flex flex-col items-center justify-center p-4 sm:p-8 relative bg-black"
+      className="min-h-screen w-full flex flex-col items-center justify-center p-0 sm:p-4 relative bg-midnight overflow-hidden"
       style={{ '--accent-color': accentColor } as React.CSSProperties}
     >
-      {/* Dynamic Atmospheric Background */}
+      {/* Premium Atmosphere Background */}
+      <div className="atmosphere" />
+
+      {/* Dynamic Aura Glow */}
       <motion.div
-        className="atmosphere"
         animate={{
-          opacity: 0.1 + (beatIntensity * 0.4),
-          scale: 1 + (beatIntensity * 0.1),
+          opacity: isPlaying ? 0.4 : 0.1,
+          scale: 1 + (beatIntensity * 0.2)
         }}
-        transition={{ duration: 0.1 }}
+        className="fixed inset-0 pointer-events-none z-0 transition-all duration-1000"
         style={{
-          background: `
-            radial-gradient(circle at 50% -10%, ${accentColor}08 0%, transparent 60%),
-            radial-gradient(circle at 0% 100%, ${accentColor}05 0%, transparent 50%),
-            radial-gradient(circle at 100% 100%, ${accentColor}03 0%, transparent 40%)
-          `
+          background: `radial-gradient(circle at 50% 50%, ${accentColor}15 0%, transparent 70%)`
         }}
       />
 
       {/* Main App Container */}
       <motion.div
         animate={{
-          boxShadow: `0 0 ${40 + (Math.max(0, beatIntensity) * 60)}px ${(accentColor || '#00d4ff')}10`,
-          borderColor: isPlaying ? '#581c87' : '#581c87aa'
+          boxShadow: `0 0 ${40 + (beatIntensity * 60)}px ${accentColor}15`,
         }}
-        className="w-full max-w-md h-[850px] max-h-[90vh] player-chrome rounded-[48px] flex flex-col overflow-hidden relative z-10"
+        className="relative z-10 w-full max-w-lg h-[100dvh] sm:h-[850px] sm:max-h-[90vh] flex flex-col glass-premium sm:rounded-[48px] overflow-hidden glass-border-light shadow-2xl"
       >
-
-        {/* Header: Greeting & Search */}
-        <header className="px-8 pt-6 pb-2 flex items-center justify-between relative">
-          <AnimatePresence mode="wait">
-            {!showSearch ? (
-              <motion.div
-                key="greeting"
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                className="flex-1"
-              >
-                <p className="micro-label text-accent opacity-80">Good Evening</p>
-                <h1 className="text-lg font-display font-bold tracking-tight">Ivan Wangler</h1>
-              </motion.div>
-            ) : (
-              <motion.form
-                key="search"
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 10 }}
-                onSubmit={handleAISearch}
-                className="flex-1 flex items-center bg-white/5 rounded-xl border border-white/10 px-3 py-1.5 mr-4"
-              >
-                <input
-                  autoFocus
-                  type="text"
-                  placeholder="Ask AI for a track..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-transparent border-none outline-none text-xs text-white placeholder:text-white/20 w-full"
-                />
-                <button type="submit" disabled={isSearching}>
-                  {isSearching ? <Loader2 size={14} className="animate-spin text-accent" /> : <Search size={14} className="text-white/40" />}
-                </button>
-              </motion.form>
-            )}
-          </AnimatePresence>
-
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setShowSearch(!showSearch)}
-              className={`p-2 rounded-xl glass-card transition-all ${showSearch ? 'bg-accent text-white' : 'text-white/60 hover:text-white'}`}
-            >
-              <Search size={16} />
-            </button>
-            <button
-              onClick={() => setActiveTab(activeTab === 'arch' ? 'player' : 'arch')}
-              className={`p-2 rounded-xl glass-card transition-all ${activeTab === 'arch' ? 'bg-white text-black' : 'text-white/60 hover:text-white'}`}
-            >
-              <Info size={16} />
-            </button>
-            <button
-              onClick={() => setActiveTab('dsp')}
-              className={`p-2 rounded-xl glass-card transition-all ${activeTab === 'dsp' ? 'bg-white text-black' : 'text-white/60 hover:text-white'}`}
-            >
-              <Settings2 size={16} />
-            </button>
-          </div>
-        </header>
-
-        {/* Top Navigation */}
-        <nav className="flex items-center justify-between px-8 py-4">
-          <button
-            onClick={() => setActiveTab('library')}
-            className={`p-2.5 rounded-xl transition-all duration-300 ${activeTab === 'library' ? 'bg-white/10 text-white shadow-lg' : 'text-white/30 hover:text-white'}`}
-          >
-            <ListMusic size={18} />
-          </button>
-
-          <div className="flex bg-white/5 p-1 rounded-xl border border-white/5">
-            <button
-              onClick={() => setActiveTab('player')}
-              className={`px-5 py-1.5 rounded-lg text-[9px] font-display font-bold tracking-[0.15em] uppercase transition-all duration-300 ${activeTab === 'player' ? 'bg-white text-black shadow-xl' : 'text-white/40 hover:text-white'}`}
-            >
-              Player
-            </button>
-            <button
-              onClick={() => setActiveTab('dsp')}
-              className={`px-5 py-1.5 rounded-lg text-[9px] font-display font-bold tracking-[0.15em] uppercase transition-all duration-300 ${activeTab === 'dsp' ? 'bg-white text-black shadow-xl' : 'text-white/40 hover:text-white'}`}
-            >
-              DSP
-            </button>
-          </div>
-
-          <button
-            onClick={() => setActiveTab('eq')}
-            className={`p-2.5 rounded-xl transition-all duration-300 ${activeTab === 'eq' ? 'bg-white/10 text-white shadow-lg' : 'text-white/30 hover:text-white'}`}
-          >
-            <Zap size={18} />
-          </button>
-        </nav>
-
-        {/* Content Area */}
-        <div className="flex-1 overflow-hidden relative">
+        {/* Main Content Area */}
+        <main className="flex-1 relative overflow-hidden">
           <AnimatePresence mode="wait">
             {activeTab === 'player' && (
               <motion.div
                 key="player"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 1.05 }}
-                transition={{ duration: 0.3 }}
-                className="absolute inset-0 h-full"
+                initial={{ opacity: 0, scale: 0.98, x: -10 }}
+                animate={{ opacity: 1, scale: 1, x: 0 }}
+                exit={{ opacity: 0, scale: 1.02, x: 10 }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                className="absolute inset-0"
               >
                 <Player
                   isPlaying={isPlaying}
                   setIsPlaying={setIsPlaying}
                   accentColor={accentColor}
-                  audioSource={currentTrack.url || null}
+                  audioSource={trackQueue[currentTrackIndex]?.url || null}
                   audioRef={activeAudioRef === 1 ? audioRef1 : audioRef2}
-                  trackInfo={currentTrack}
-                  isFetchingCover={!!currentTrack.isFetchingMetadata}
+                  trackInfo={trackQueue[currentTrackIndex] || { title: 'No Track Selected', artist: 'Unknown Artist' }}
                   autoPlay={autoPlay}
                   onAutoPlayDone={() => setAutoPlay(false)}
+                  isFetchingCover={trackQueue[currentTrackIndex]?.isFetchingMetadata}
                   eqValues={eqValues}
                   dspSettings={dspSettings}
                   onNext={handleNext}
@@ -524,7 +429,7 @@ export default function App() {
                   volume={volume}
                   setVolume={setVolume}
                   onViewLibrary={() => setActiveTab('library')}
-                  nextTrack={nextTrack}
+                  nextTrack={trackQueue[getNextIndex()]}
                   onBeat={setBeatIntensity}
                   beatIntensity={beatIntensity}
                   onTimeUpdate={handleTimeUpdate}
@@ -539,32 +444,15 @@ export default function App() {
                 />
               </motion.div>
             )}
-            {activeTab === 'eq' && (
-              <motion.div
-                key="eq"
-                initial={{ opacity: 0, x: 50 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -50 }}
-                transition={{ duration: 0.3 }}
-                className="absolute inset-0 h-full"
-              >
-                <Equalizer
-                  accentColor={accentColor}
-                  eqValues={eqValues}
-                  setEqValues={setEqValues}
-                  eqBands={eqBands}
-                  phaseCorrectionEnabled={dspSettings.phaseCorrection}
-                />
-              </motion.div>
-            )}
+
             {activeTab === 'library' && (
               <motion.div
                 key="library"
-                initial={{ opacity: 0, x: -50 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 50 }}
-                transition={{ duration: 0.3 }}
-                className="absolute inset-0 h-full"
+                initial={{ opacity: 0, scale: 1.02, x: 10 }}
+                animate={{ opacity: 1, scale: 1, x: 0 }}
+                exit={{ opacity: 0, scale: 0.98, x: -10 }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                className="absolute inset-0"
               >
                 <Library
                   accentColor={accentColor}
@@ -577,14 +465,34 @@ export default function App() {
                 />
               </motion.div>
             )}
+
+            {activeTab === 'eq' && (
+              <motion.div
+                key="eq"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                className="absolute inset-0"
+              >
+                <Equalizer
+                  accentColor={accentColor}
+                  eqValues={eqValues}
+                  setEqValues={setEqValues}
+                  eqBands={eqBands}
+                  phaseCorrectionEnabled={dspSettings.phaseCorrection}
+                />
+              </motion.div>
+            )}
+
             {activeTab === 'dsp' && (
               <motion.div
                 key="dsp"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 1.1 }}
-                transition={{ duration: 0.3 }}
-                className="absolute inset-0 h-full"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                className="absolute inset-0"
               >
                 <DSPSettings
                   accentColor={accentColor}
@@ -595,29 +503,143 @@ export default function App() {
                 />
               </motion.div>
             )}
+
             {activeTab === 'arch' && (
               <motion.div
                 key="arch"
-                initial={{ opacity: 0, y: 50 }}
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 50 }}
-                transition={{ duration: 0.3 }}
-                className="absolute inset-0 h-full"
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                className="absolute inset-0 overflow-y-auto no-scrollbar"
               >
                 <ArchitectureDoc />
               </motion.div>
             )}
-          </AnimatePresence>
-        </div>
 
-        {/* Bottom Signature Footer */}
-        <div className="p-4 flex justify-center border-t border-white/5">
-          <p className="micro-label text-[8px] text-white/20 tracking-[0.3em]">
-            Criado por <span className="text-accent/40 font-bold">Ivan Wangler</span>
-          </p>
-        </div>
+            {activeTab === 'settings' && (
+              <motion.div
+                key="settings"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                className="absolute inset-0"
+              >
+                <div className="flex flex-col h-full px-8 pt-8 pb-32 overflow-y-auto no-scrollbar">
+                  <h2 className="text-3xl font-display font-extrabold tracking-tight mb-8">Settings</h2>
+
+                  <section className="mb-10">
+                    <h3 className="micro-label mb-6">Accent Color</h3>
+                    <div className="grid grid-cols-4 gap-4 text-white">
+                      {['#00d4ff', '#ff0080', '#581c87', '#00ff80', '#ff8000', '#ffffff', '#ffff00', '#ff0000'].map(color => (
+                        <button
+                          key={color}
+                          onClick={() => setAccentColor(color)}
+                          className={`w-full aspect-square rounded-2xl transition-all duration-300 ${accentColor === color ? 'scale-110 shadow-lg ring-2 ring-white ring-offset-2 ring-offset-midnight' : 'opacity-40 hover:opacity-100'}`}
+                          style={{ backgroundColor: color, boxShadow: accentColor === color ? `0 0 20px ${color}60` : 'none' }}
+                        />
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="mb-10">
+                    <h3 className="micro-label mb-6">System Info</h3>
+                    <div className="space-y-4">
+                      <div className="p-5 glass-card rounded-[28px] flex justify-between items-center group">
+                        <span className="text-sm font-medium text-white/40 group-hover:text-white transition-colors">Core Engine</span>
+                        <span className="text-xs font-mono font-bold text-accent">v2.4.0-Neural</span>
+                      </div>
+                      <div className="p-5 glass-card rounded-[28px] flex justify-between items-center group">
+                        <span className="text-sm font-medium text-white/40 group-hover:text-white transition-colors">AI Model</span>
+                        <span className="text-xs font-mono font-bold text-accent">Gemini Ultra</span>
+                      </div>
+                    </div>
+                  </section>
+
+                  <button
+                    onClick={() => localStorage.clear()}
+                    className="w-full p-6 rounded-[32px] bg-red-500/10 text-red-500 border border-red-500/20 font-display font-bold hover:bg-red-500 hover:text-white transition-all shadow-lg shadow-red-500/10"
+                  >
+                    Reset Storage
+                  </button>
+
+                  <div className="mt-8 text-center opacity-20 hover:opacity-100 transition-opacity">
+                    <p className="micro-label text-[7px] tracking-[0.4em]">Criado por Ivan Wangler</p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </main>
+
+        {/* Floating Navigation Bar */}
+        <nav className="flex-shrink-0 px-6 py-4 absolute bottom-0 left-0 right-0 z-50">
+          <div className="glass-premium rounded-[32px] p-2 flex justify-between items-center glass-border-light backdrop-blur-[60px]">
+            <NavButton active={activeTab === 'player'} icon={<Activity size={20} />} label="Vibe" onClick={() => setActiveTab('player')} activeColor={accentColor} />
+            <NavButton active={activeTab === 'library'} icon={<ListMusic size={20} />} label="Vault" onClick={() => setActiveTab('library')} activeColor={accentColor} />
+            <NavButton active={activeTab === 'eq'} icon={<Activity size={20} />} label="Master" onClick={() => setActiveTab('eq')} activeColor={accentColor} />
+            <NavButton active={activeTab === 'dsp'} icon={<Zap size={20} />} label="Engine" onClick={() => setActiveTab('dsp')} activeColor={accentColor} />
+            <NavButton active={activeTab === 'settings'} icon={<Settings2 size={20} />} label="Prefs" onClick={() => setActiveTab('settings')} activeColor={accentColor} />
+          </div>
+        </nav>
       </motion.div>
+
+      <style dangerouslySetInnerHTML={{
+        __html: `
+        :root { --accent-color: ${accentColor}; --accent-rgb: ${accentColor.replace('#', '').match(/.{2}/g)?.map(x => parseInt(x, 16)).join(', ')}; }
+        .text-accent { color: ${accentColor}; }
+        .bg-accent { background-color: ${accentColor}; }
+        .border-accent { border-color: ${accentColor}; }
+        
+        input[type="range"].eq-slider::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          width: 8px;
+          height: 16px;
+          background: #fff;
+          border-radius: 4px;
+          box-shadow: 0 0 10px ${accentColor};
+          cursor: pointer;
+        }
+      ` }} />
     </div>
   );
 }
 
+interface NavButtonProps {
+  active: boolean;
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  activeColor: string;
+}
+
+function NavButton({ active, icon, label, onClick, activeColor }: NavButtonProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={`relative flex flex-col items-center justify-center py-2 px-4 rounded-2xl transition-all duration-500 ${active ? 'text-white' : 'text-white/20 hover:text-white/40'}`}
+    >
+      {active && (
+        <motion.div
+          layoutId="nav-bg"
+          className="absolute inset-0 bg-white/5 rounded-2xl"
+          transition={{ type: "spring", bounce: 0.3, duration: 0.6 }}
+        />
+      )}
+      <div className={`relative transition-transform duration-300 ${active ? 'scale-110 -translate-y-0.5' : ''}`} style={{ color: active ? activeColor : undefined }}>
+        {icon}
+      </div>
+      <span className={`text-[8px] font-display font-black uppercase tracking-widest mt-1 transition-all duration-300 ${active ? 'opacity-100' : 'opacity-0 scale-90'}`}>
+        {label}
+      </span>
+      {active && (
+        <motion.div
+          layoutId="nav-dot"
+          className="absolute -bottom-1 w-1 h-1 rounded-full bg-accent"
+          style={{ backgroundColor: activeColor, boxShadow: `0 0 8px ${activeColor}` }}
+        />
+      )}
+    </button>
+  );
+}

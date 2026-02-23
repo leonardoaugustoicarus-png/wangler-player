@@ -231,10 +231,10 @@ export default function Player({
         <div className="flex justify-between items-center">
           <button
             onClick={onExit}
-            className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-white/40 hover:text-white hover:bg-white/10 transition-all text-[8px] font-display font-bold uppercase tracking-widest"
+            className="flex items-center space-x-2 px-4 py-2 rounded-full bg-white/[0.03] border border-white/[0.08] text-white/40 hover:text-white hover:bg-white/[0.06] hover:border-white/[0.15] transition-all text-[8px] font-display font-black uppercase tracking-[0.3em] backdrop-blur-md group"
           >
-            <LogOut size={12} />
-            <span>Sair</span>
+            <LogOut size={12} className="group-hover:-translate-x-0.5 transition-transform" />
+            <span>Sair do Player</span>
           </button>
         </div>
       </div>
@@ -249,9 +249,10 @@ export default function Player({
             dragConstraints={{ left: 0, right: 0 }}
             onDragEnd={handleDragEnd}
             animate={{
-              scale: isPlaying ? 1 + (beatIntensity * 0.05) : 1
+              scale: isPlaying ? 1 + (beatIntensity * 0.08) : 1,
+              rotate: isPlaying ? beatIntensity * 2 : 0
             }}
-            className="relative w-full aspect-square max-w-[180px] sm:max-w-[220px] group cursor-grab active:cursor-grabbing mx-auto"
+            className="relative w-full aspect-square max-w-[200px] sm:max-w-[260px] group cursor-grab active:cursor-grabbing mx-auto"
           >
             <div
               className="absolute inset-0 rounded-[28px] blur-[30px] opacity-30 transition-colors duration-1000"
@@ -355,7 +356,7 @@ export default function Player({
                 initial: { y: 10, opacity: 0 },
                 animate: { y: 0, opacity: 1 }
               }}
-              className="text-xl font-display font-bold tracking-tight text-glow shadow-accent/20"
+              className="text-2xl font-display font-black tracking-tighter title-premium"
             >
               {trackInfo.title}
             </motion.h2>
@@ -365,7 +366,7 @@ export default function Player({
                 initial: { y: 10, opacity: 0 },
                 animate: { y: 0, opacity: 1 }
               }}
-              className="text-white/30 text-[9px] mt-0.5 uppercase tracking-[0.3em] font-mono font-medium"
+              className="text-accent text-[10px] mt-1.5 uppercase tracking-[0.4em] font-mono font-bold opacity-80"
             >
               {trackInfo.artist}
             </motion.p>
@@ -434,10 +435,14 @@ export default function Player({
 
         {/* Progress Slider */}
         <div className="space-y-2 mb-4">
-          <div className="relative h-1 w-full bg-white/5 rounded-full overflow-hidden">
+          <div className="relative h-1.5 w-full bg-white/[0.03] rounded-full overflow-hidden border border-white/[0.05]">
             <motion.div
-              className="absolute top-0 left-0 h-full shadow-[0_0_15px_rgba(0,212,255,0.5)]"
-              style={{ width: `${durationMs > 0 ? (currentTimeMs / durationMs) * 100 : 0}%`, backgroundColor: accentColor }}
+              className="absolute top-0 left-0 h-full rounded-full"
+              style={{
+                width: `${durationMs > 0 ? (currentTimeMs / durationMs) * 100 : 0}%`,
+                backgroundColor: accentColor,
+                boxShadow: `0 0 20px ${accentColor}`
+              }}
             />
           </div>
           <div className="flex justify-between items-center text-[8px] font-mono text-white/30">
@@ -472,12 +477,12 @@ export default function Player({
 
               <button
                 onClick={() => setIsPlaying(!isPlaying)}
-                className="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 btn-neon hover:scale-105 active:scale-90 shadow-lg"
+                className="w-16 h-16 rounded-full flex items-center justify-center transition-all duration-500 btn-neon hover:scale-110 active:scale-95 shadow-[0_20px_50px_rgba(0,0,0,0.5)] group"
               >
                 {isPlaying ? (
-                  <Pause size={20} fill="white" className="text-white" />
+                  <Pause size={24} fill="white" className="text-white group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.5)] transition-all" />
                 ) : (
-                  <Play size={20} fill="white" className="text-white ml-0.5" />
+                  <Play size={24} fill="white" className="text-white ml-1 group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.5)] transition-all" />
                 )}
               </button>
 

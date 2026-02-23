@@ -49,7 +49,7 @@ export default function Library({
   return (
     <div className="flex flex-col h-full px-6 pt-4 pb-8 overflow-hidden">
       <div className="flex items-center justify-between mb-8">
-        <h2 className="text-2xl font-display font-bold tracking-tight">Library</h2>
+        <h2 className="text-3xl font-display font-black tracking-tighter title-premium">Vault</h2>
         <div className="flex space-x-2">
           <input
             type="file"
@@ -69,24 +69,24 @@ export default function Library({
       </div>
 
       {/* Search Bar */}
-      <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" size={14} />
+      <div className="relative mb-6 group">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-accent transition-colors duration-300" size={14} />
         <input
           type="text"
-          placeholder="Search your library..."
+          placeholder="Scan your database..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-xs focus:outline-none focus:border-accent/50 transition-colors"
+          className="w-full bg-white/[0.03] border border-white/[0.08] rounded-2xl py-3 pl-11 pr-4 text-xs focus:outline-none focus:border-accent/40 focus:bg-white/[0.05] transition-all duration-300 backdrop-blur-md"
         />
       </div>
 
       {/* Categories */}
-      <div className="flex space-x-3 mb-8 overflow-x-auto no-scrollbar pb-2">
+      <div className="flex space-x-3 mb-10 overflow-x-auto no-scrollbar pb-2">
         {['Tracks', 'Albums', 'Artists', 'Folders', 'Playlists'].map((cat) => (
           <button
             key={cat}
             onClick={() => setCategory(cat)}
-            className={`px-5 py-2.5 rounded-xl text-[10px] uppercase tracking-widest font-display font-bold transition-all ${category === cat ? 'bg-white text-black shadow-lg' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
+            className={`px-6 py-3 rounded-2xl text-[9px] uppercase tracking-[0.2em] font-display font-black transition-all duration-500 whitespace-nowrap ${category === cat ? 'bg-white text-black shadow-2xl scale-105' : 'bg-white/[0.03] text-white/30 hover:bg-white/[0.06] hover:text-white/60'}`}
           >
             {cat}
           </button>
@@ -98,17 +98,18 @@ export default function Library({
         {filteredTracks.map((track, i) => (
           <motion.div
             key={track.id}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: i * 0.05 }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            whileHover={{ x: 8 }}
             onClick={() => {
               onSelectMockTrack({ title: track.title, artist: track.artist });
               setLastAdded(track.id);
               setTimeout(() => setLastAdded(null), 2000);
             }}
-            className="group flex items-center p-3 rounded-2xl hover:bg-white/5 transition-all cursor-pointer"
+            className="group flex items-center p-4 rounded-[28px] hover:bg-white/[0.03] transition-all cursor-pointer border border-transparent hover:border-white/[0.05]"
           >
-            <div className="relative w-14 h-14 rounded-2xl overflow-hidden mr-4 shadow-lg">
+            <div className="relative w-16 h-16 rounded-[22px] overflow-hidden mr-5 shadow-2xl ring-1 ring-white/10">
               <img
                 src={`https://picsum.photos/seed/${track.title}/100/100`}
                 alt={track.title}
@@ -160,18 +161,19 @@ export default function Library({
       </div>
 
       {/* Storage Info */}
-      <div className="mt-6 p-5 rounded-3xl glass-card border-white/5 flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <div className="p-2 rounded-xl bg-accent/10 text-accent">
+      <div className="mt-8 p-6 rounded-[34px] glass-card flex items-center justify-between group overflow-hidden relative">
+        <div className="absolute inset-0 bg-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+        <div className="flex items-center space-x-4 relative z-10">
+          <div className="p-3 rounded-2xl bg-accent/10 text-accent glow-border">
             <Folder size={18} />
           </div>
           <div>
-            <p className="text-[10px] font-display font-bold uppercase tracking-wider">Local Storage</p>
-            <p className="text-[9px] text-white/30 font-mono">128 GB / 512 GB used</p>
+            <p className="micro-label mb-1">Local Storage</p>
+            <p className="text-[10px] text-white/50 font-mono font-bold tracking-tight">128 GB <span className="text-white/20">/ 512 GB</span></p>
           </div>
         </div>
-        <div className="w-24 h-1.5 bg-white/5 rounded-full overflow-hidden">
-          <div className="h-full bg-accent shadow-[0_0_10px_rgba(0,212,255,0.5)] w-1/4" />
+        <div className="w-24 h-1.5 bg-white/5 rounded-full overflow-hidden relative z-10">
+          <div className="h-full bg-accent shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)] w-1/4" />
         </div>
       </div>
     </div>
