@@ -80,12 +80,17 @@ export default function App() {
       try {
         const parsed = JSON.parse(savedState);
         if (parsed && typeof parsed === 'object') {
-          if (parsed.volume !== undefined) setVolume(Number(parsed.volume));
+          if (parsed.volume !== undefined) setVolume(Math.max(0, Math.min(1, Number(parsed.volume))));
           if (parsed.shuffle !== undefined) setShuffle(Boolean(parsed.shuffle));
-          if (parsed.repeat) setRepeat(parsed.repeat);
+
+          const validRepeat = ['none', 'one', 'all'];
+          if (parsed.repeat && validRepeat.includes(parsed.repeat)) {
+            setRepeat(parsed.repeat as 'none' | 'one' | 'all');
+          }
+
           if (Array.isArray(parsed.trackQueue)) {
             const cleanedQueue = parsed.trackQueue.map((t: any) => {
-              if (t && typeof t === 'object') {
+              if (t && typeof t === 'object' && t.title && t.artist) {
                 return {
                   ...t,
                   url: t.url?.startsWith('blob:') ? undefined : t.url
@@ -95,14 +100,25 @@ export default function App() {
             }).filter(Boolean);
             setTrackQueue(cleanedQueue as any);
           }
-          if (parsed.currentTrackIndex !== undefined) setCurrentTrackIndex(Number(parsed.currentTrackIndex));
+
+          if (parsed.currentTrackIndex !== undefined) {
+            const idx = Number(parsed.currentTrackIndex);
+            setCurrentTrackIndex(isNaN(idx) ? -1 : idx);
+          }
+
           if (parsed.accentColor && typeof parsed.accentColor === 'string') setAccentColor(parsed.accentColor);
-          if (parsed.dspSettings && typeof parsed.dspSettings === 'object') {
+
+          if (parsed.dspSettings && typeof parsed.dspSettings === 'object' && parsed.dspSettings !== null) {
             setDspSettings(prev => ({ ...prev, ...parsed.dspSettings }));
           }
+
+          if (parsed.librarySearchQuery !== undefined) setLibrarySearchQuery(String(parsed.librarySearchQuery));
+          if (parsed.libraryCategory !== undefined) setLibraryCategory(String(parsed.libraryCategory));
         }
       } catch (e) {
         console.error("Failed to load state", e);
+        // Fallback: if data is corrupted, clear it to allow app to start
+        localStorage.removeItem(STORAGE_KEY);
       }
     }
 
