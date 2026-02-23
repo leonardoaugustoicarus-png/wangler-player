@@ -240,7 +240,7 @@ export default function Player({
       </div>
 
       {/* Scrollable Main Content */}
-      <div className="flex-1 overflow-y-auto no-scrollbar px-8 pb-4 flex flex-col items-center">
+      <div className="flex-1 overflow-y-auto no-scrollbar px-8 pb-32 flex flex-col items-center">
         {/* Album Art Area */}
         <div className="flex-shrink-0 flex flex-col items-center justify-start relative py-6 w-full">
           <motion.div

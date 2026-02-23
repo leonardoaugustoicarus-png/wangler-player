@@ -371,7 +371,7 @@ export default function App() {
 
   return (
     <div
-      className="min-h-screen w-full flex flex-col items-center justify-center p-0 sm:p-4 relative bg-midnight overflow-hidden"
+      className="min-h-screen w-full flex flex-col items-center justify-center p-0 sm:p-4 relative bg-[#0a0101] overflow-hidden"
       style={{ '--accent-color': accentColor } as React.CSSProperties}
     >
       {/* Premium Atmosphere Background */}
@@ -397,7 +397,7 @@ export default function App() {
         className="relative z-10 w-full max-w-lg h-[100dvh] sm:h-[850px] sm:max-h-[90vh] flex flex-col glass-premium sm:rounded-[48px] overflow-hidden glass-border-light shadow-2xl"
       >
         {/* Main Content Area */}
-        <main className="flex-1 relative overflow-hidden">
+        <main className="flex-1 relative overflow-hidden pb-[100px]">
           <AnimatePresence mode="wait">
             {activeTab === 'player' && (
               <motion.div

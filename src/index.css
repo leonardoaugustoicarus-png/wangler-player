@@ -7,9 +7,9 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
   --color-accent: var(--accent-color, #00d4ff);
-  --color-midnight: #020202;
-  --color-deep-blue: #050505;
-  
+  --color-midnight: #0f0202;
+  --color-deep-wine: #1a0505;
+
   --shadow-premium: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
   --shadow-neon: 0 0 20px var(--accent-color, rgba(0, 212, 255, 0.4));
 }
@@ -37,17 +37,18 @@
   .mask-fade-y {
     mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
   }
-  
+
   .glass-premium {
     @apply bg-white/[0.03] backdrop-blur-[40px] border border-white/[0.05] shadow-premium;
   }
-  
+
   .glass-border-light {
     border: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   .glow-border {
-    @apply border border-accent/20 shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)];
+    @apply border border-accent/20;
+    box-shadow: 0 0 15px rgba(var(--accent-rgb), 0.1);
   }
 }
 
@@ -56,8 +57,8 @@
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background: radial-gradient(circle at 50% 50%, var(--accent-color, #00d4ff10) 0%, #000 100%);
-  opacity: 0.6;
+  background: radial-gradient(circle at 50% 50%, var(--accent-color, #00d4ff05) 0%, #0a0101 100%);
+  opacity: 0.8;
   transition: all 2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -65,16 +66,21 @@
   content: '';
   position: absolute;
   inset: -50%;
-  background: 
-    radial-gradient(circle at 20% 30%, var(--accent-color, #00d4ff20) 0%, transparent 40%),
-    radial-gradient(circle at 80% 70%, #581c8715 0%, transparent 40%);
+  background:
+    radial-gradient(circle at 20% 30%, var(--accent-color, #00d4ff15) 0%, transparent 40%),
+    radial-gradient(circle at 80% 70%, #7f1d1d10 0%, transparent 40%);
   filter: blur(80px);
   animation: atmosphere-drift 30s infinite alternate ease-in-out;
 }
 
 @keyframes atmosphere-drift {
-  from { transform: translate(0, 0) scale(1); }
-  to { transform: translate(5%, 5%) scale(1.1); }
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+
+  to {
+    transform: translate(5%, 5%) scale(1.1);
+  }
 }
 
 .player-chrome {
