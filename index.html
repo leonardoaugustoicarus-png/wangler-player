@@ -47,6 +47,15 @@
       window.onunhandledrejection = function (e) {
         report('PROMISE_REJECTION', e.reason);
       };
+      // Force unregister Service Workers to clear "cache trap"
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for(let registration of registrations) {
+            registration.unregister();
+            console.log('SW Unregistered to fix cache-trap');
+          }
+        });
+      }
     })();
   </script>
   <div id="root"></div>
