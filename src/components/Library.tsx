@@ -6,11 +6,23 @@ interface LibraryProps {
   accentColor: string;
   onSelectTrack: (file: File) => void;
   onSelectMockTrack: (track: { title: string, artist: string }) => void;
+  searchQuery: string;
+  setSearchQuery: (val: string) => void;
+  category: string;
+  setCategory: (val: string) => void;
 }
 
-export default function Library({ accentColor, onSelectTrack, onSelectMockTrack }: LibraryProps) {
+export default function Library({
+  accentColor,
+  onSelectTrack,
+  onSelectMockTrack,
+  searchQuery,
+  setSearchQuery,
+  category,
+  setCategory
+}: LibraryProps) {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [lastAdded, setLastAdded] = useState<number | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -70,10 +82,11 @@ export default function Library({ accentColor, onSelectTrack, onSelectMockTrack 
 
       {/* Categories */}
       <div className="flex space-x-3 mb-8 overflow-x-auto no-scrollbar pb-2">
-        {['Tracks', 'Albums', 'Artists', 'Folders', 'Playlists'].map((cat, i) => (
+        {['Tracks', 'Albums', 'Artists', 'Folders', 'Playlists'].map((cat) => (
           <button
             key={cat}
-            className={`px-5 py-2.5 rounded-xl text-[10px] uppercase tracking-widest font-display font-bold transition-all ${i === 0 ? 'bg-white text-black shadow-lg' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
+            onClick={() => setCategory(cat)}
+            className={`px-5 py-2.5 rounded-xl text-[10px] uppercase tracking-widest font-display font-bold transition-all ${category === cat ? 'bg-white text-black shadow-lg' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
           >
             {cat}
           </button>
@@ -90,6 +103,8 @@ export default function Library({ accentColor, onSelectTrack, onSelectMockTrack 
             transition={{ delay: i * 0.05 }}
             onClick={() => {
               onSelectMockTrack({ title: track.title, artist: track.artist });
+              setLastAdded(track.id);
+              setTimeout(() => setLastAdded(null), 2000);
             }}
             className="group flex items-center p-3 rounded-2xl hover:bg-white/5 transition-all cursor-pointer"
           >
@@ -110,6 +125,15 @@ export default function Library({ accentColor, onSelectTrack, onSelectMockTrack 
               <div className="flex items-center space-x-2 mt-0.5">
                 <span className="text-[10px] text-white/30 truncate font-medium">{track.artist}</span>
                 <span className="text-[8px] px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-white/40 font-mono font-bold">{track.format}</span>
+                {lastAdded === track.id && (
+                  <motion.span
+                    initial={{ opacity: 0, x: -5 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="text-[8px] text-emerald-400 font-bold uppercase tracking-tighter"
+                  >
+                    Adicionado!
+                  </motion.span>
+                )}
               </div>
             </div>
 

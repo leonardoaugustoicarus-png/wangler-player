@@ -33,6 +33,8 @@ export default function App() {
   const [isSearching, setIsSearching] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [beatIntensity, setBeatIntensity] = useState(0);
+  const [librarySearchQuery, setLibrarySearchQuery] = useState('');
+  const [libraryCategory, setLibraryCategory] = useState('Tracks');
 
   const audioRef1 = React.useRef<HTMLAudioElement>(null);
   const audioRef2 = React.useRef<HTMLAudioElement>(null);
@@ -121,7 +123,7 @@ export default function App() {
       dspSettings
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
-  }, [volume, shuffle, repeat, trackQueue, currentTrackIndex, accentColor, dspSettings]);
+  }, [volume, shuffle, repeat, trackQueue, currentTrackIndex, accentColor, dspSettings, librarySearchQuery, libraryCategory]);
 
   // Handle AI Music Search
   const handleAISearch = async (e: React.FormEvent) => {
@@ -176,6 +178,8 @@ export default function App() {
     setCurrentTrackIndex(newIndex);
     setAutoPlay(true);
     setIsPlaying(false);
+    // User requested to keep selection saved/not always switch back
+    // For local files, we'll keep switching to player to show it's playing
     setActiveTab('player');
 
     // Busca automática de capa via Gemini
@@ -294,7 +298,7 @@ export default function App() {
 
   const nextTrack = trackQueue[currentTrackIndex + 1];
 
-  const handleSelectMockTrack = (track: { title: string, artist: string }) => {
+  const handleSelectMockTrack = (track: { title: string, artist: string }, stayInLibrary: boolean = false) => {
     const mockAudioUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"; // Exemplo de áudio real para teste
     const newTrack = {
       ...track,
@@ -309,10 +313,19 @@ export default function App() {
     };
 
     setTrackQueue(prev => [...prev, newTrack]);
-    setCurrentTrackIndex(trackQueue.length);
-    setAutoPlay(true);
+    const newIndex = trackQueue.length;
+
+    if (!stayInLibrary) {
+      setCurrentTrackIndex(newIndex);
+      setAutoPlay(true);
+      setIsPlaying(false);
+      setActiveTab('player');
+    }
+  };
+
+  const handleExit = () => {
     setIsPlaying(false);
-    setActiveTab('player');
+    setActiveTab('library');
   };
 
 
@@ -497,6 +510,7 @@ export default function App() {
                   onBeat={setBeatIntensity}
                   beatIntensity={beatIntensity}
                   onTimeUpdate={handleTimeUpdate}
+                  onExit={handleExit}
                 />
 
                 {/* Secondary Audio Target for Crossfade */}
@@ -537,7 +551,11 @@ export default function App() {
                 <Library
                   accentColor={accentColor}
                   onSelectTrack={handleSelectTrack}
-                  onSelectMockTrack={handleSelectMockTrack}
+                  onSelectMockTrack={(track) => handleSelectMockTrack(track, true)}
+                  searchQuery={librarySearchQuery}
+                  setSearchQuery={setLibrarySearchQuery}
+                  category={libraryCategory}
+                  setCategory={setLibraryCategory}
                 />
               </motion.div>
             )}

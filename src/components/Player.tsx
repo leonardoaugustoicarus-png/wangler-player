@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useMotionValue, useTransform, AnimatePresence } from 'motion/react';
-import { Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, Volume2, Languages, Music2, Loader2 } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, Volume2, Languages, Music2, Loader2, LogOut } from 'lucide-react';
 import SpectrumAnalyzer from './SpectrumAnalyzer';
 import { audioCore } from '../services/audioCore';
 
@@ -40,6 +40,7 @@ interface PlayerProps {
   onBeat?: (intensity: number) => void;
   beatIntensity: number;
   onTimeUpdate?: (current: number, duration: number) => void;
+  onExit?: () => void;
 }
 
 interface LyricLine {
@@ -86,7 +87,8 @@ export default function Player({
   nextTrack,
   onBeat,
   beatIntensity,
-  onTimeUpdate: onTimeUpdateProp
+  onTimeUpdate: onTimeUpdateProp,
+  onExit
 }: PlayerProps) {
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
   const [durationMs, setDurationMs] = useState(0);
@@ -224,8 +226,19 @@ export default function Player({
 
   return (
     <div className="flex flex-col h-full px-8 pt-4 pb-8 relative overflow-hidden">
+      {/* Top Bar with Exit Button */}
+      <div className="absolute top-4 left-8 right-8 flex justify-between items-center z-40">
+        <button
+          onClick={onExit}
+          className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-white/40 hover:text-white hover:bg-white/10 transition-all text-[8px] font-display font-bold uppercase tracking-widest"
+        >
+          <LogOut size={12} />
+          <span>Sair</span>
+        </button>
+      </div>
+
       {/* Album Art Area */}
-      <div className="flex-1 flex flex-col items-center justify-start pt-4 relative">
+      <div className="flex-1 flex flex-col items-center justify-start pt-10 relative">
         <motion.div
           style={{ x, rotate, opacity }}
           drag="x"
