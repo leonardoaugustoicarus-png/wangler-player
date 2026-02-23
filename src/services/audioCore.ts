@@ -15,37 +15,47 @@ class AudioCore {
     init() {
         if (this.initialized) return;
 
-        const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext);
-        this.ctx = new AudioContextClass();
+        try {
+            const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext);
+            if (!AudioContextClass) {
+                console.warn("AudioContext not supported in this browser");
+                return;
+            }
+            this.ctx = new AudioContextClass();
 
-        this.masterGain = this.ctx.createGain();
-        this.compressor = this.ctx.createDynamicsCompressor();
-        this.analyser = this.ctx.createAnalyser();
-        this.analyser.fftSize = 256;
+            this.masterGain = this.ctx.createGain();
+            this.compressor = this.ctx.createDynamicsCompressor();
+            this.analyser = this.ctx.createAnalyser();
+            this.analyser.fftSize = 256;
 
-        // Build EQ Chain (Fixed bands)
-        this.eqFilters = this.bands.map((freq, i) => {
-            const filter = this.ctx!.createBiquadFilter();
-            filter.type = i === 0 ? 'lowshelf' : i === this.bands.length - 1 ? 'highshelf' : 'peaking';
-            filter.frequency.value = freq;
-            filter.Q.value = 1.41;
-            filter.gain.value = 0;
-            return filter;
-        });
+            // Build EQ Chain (Fixed bands)
+            this.eqFilters = this.bands.map((freq, i) => {
+                const filter = this.ctx!.createBiquadFilter();
+                filter.type = i === 0 ? 'lowshelf' : i === this.bands.length - 1 ? 'highshelf' : 'peaking';
+                filter.frequency.value = freq;
+                filter.Q.value = 1.41;
+                filter.gain.value = 0;
+                return filter;
+            });
 
-        // Connect: [In] -> EQ Filters -> Compressor -> MasterGain -> Analyser -> Destination
-        let lastNode: AudioNode = this.eqFilters[0];
-        for (let i = 1; i < this.eqFilters.length; i++) {
-            this.eqFilters[i - 1].connect(this.eqFilters[i]);
-            lastNode = this.eqFilters[i];
+            // Connect: [In] -> EQ Filters -> Compressor -> MasterGain -> Analyser -> Destination
+            let lastNode: AudioNode = this.eqFilters[0];
+            for (let i = 1; i < this.eqFilters.length; i++) {
+                this.eqFilters[i - 1].connect(this.eqFilters[i]);
+                lastNode = this.eqFilters[i];
+            }
+
+            lastNode.connect(this.compressor);
+            this.compressor.connect(this.masterGain);
+            this.masterGain.connect(this.analyser);
+            this.analyser.connect(this.ctx.destination);
+
+            this.initialized = true;
+        } catch (e) {
+            console.error("Failed to initialize AudioCore:", e);
+            // Non-blocking failure
+            this.initialized = false;
         }
-
-        lastNode.connect(this.compressor);
-        this.compressor.connect(this.masterGain);
-        this.masterGain.connect(this.analyser);
-        this.analyser.connect(this.ctx.destination);
-
-        this.initialized = true;
     }
 
     getContext() { return this.ctx; }

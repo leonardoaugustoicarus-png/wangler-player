@@ -6,8 +6,16 @@ function getAI(): GoogleGenerativeAI {
   if (!aiInstance) {
     const apiKey =
       (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY) ||
+      (typeof process !== 'undefined' && process.env?.VITE_GEMINI_API_KEY) ||
       (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) ||
       "";
+
+    if (!apiKey) {
+      console.error("CRITICAL: Gemini API Key not found. Please set VITE_GEMINI_API_KEY in Vercel.");
+    } else {
+      console.log("Gemini AI instance initialized successfully (Key length: " + apiKey.length + ")");
+    }
+
     aiInstance = new GoogleGenerativeAI(apiKey);
   }
   return aiInstance;

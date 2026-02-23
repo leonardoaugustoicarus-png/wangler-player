@@ -58,7 +58,8 @@ export default function App() {
 
   // Persistence: Load on mount
   useEffect(() => {
-    // Service Worker Registration
+    // Service Worker Registration - Disabled temporarily to fix white screen
+    /*
     if ('serviceWorker' in navigator && window.location.protocol === 'https:' || window.location.hostname === 'localhost') {
       navigator.serviceWorker.register('/sw.js').then(reg => {
         console.log('SW Registered', reg);
@@ -66,6 +67,7 @@ export default function App() {
         console.log('SW Registration failed', err);
       });
     }
+    */
 
     // Install Prompt Listener
     const handleBeforeInstallPrompt = (e: any) => {
