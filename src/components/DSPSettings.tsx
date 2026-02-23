@@ -39,14 +39,14 @@ export default function DSPSettings({
 
   return (
     <div className="flex flex-col h-full px-6 pt-4 pb-8 overflow-y-auto no-scrollbar">
-      <div className="mb-8">
-        <h2 className="text-2xl font-display font-bold tracking-tight">Elite DSP Engine</h2>
-        <p className="micro-label text-[9px] mt-1 text-accent">Neural Audio Processing Active</p>
+      <div className="mb-10">
+        <h2 className="text-3xl font-display font-black tracking-tighter title-premium">Engine</h2>
+        <p className="micro-label mt-1 text-accent font-bold opacity-80">Neural DSP Core v2.4.0-Neural</p>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-8">
         {/* AI Upsampling Section */}
-        <section className="p-6 rounded-[32px] glass-card border border-white/5 relative overflow-hidden">
+        <section className="p-8 rounded-[40px] glass-premium relative overflow-hidden glass-border-light shadow-2xl">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-3">
               <div className={`p-2.5 rounded-2xl ${dspSettings.aiUpsampling ? 'bg-accent/20 text-accent shadow-[0_0_15px_rgba(0,212,255,0.3)]' : 'bg-white/5 text-white/20'}`}>
@@ -59,11 +59,15 @@ export default function DSPSettings({
             </div>
             <button
               onClick={() => toggleSetting('aiUpsampling')}
-              className={`w-12 h-6 rounded-full relative transition-colors ${dspSettings.aiUpsampling ? 'bg-accent' : 'bg-white/10'}`}
+              className={`w-14 h-7 rounded-full relative transition-all duration-500 shadow-inner ${dspSettings.aiUpsampling ? 'bg-accent' : 'bg-white/[0.05] border border-white/5'}`}
             >
               <motion.div
-                animate={{ x: dspSettings.aiUpsampling ? 26 : 2 }}
-                className="absolute top-1 left-0 w-4 h-4 bg-white rounded-full shadow-sm"
+                animate={{
+                  x: dspSettings.aiUpsampling ? 30 : 4,
+                  scale: dspSettings.aiUpsampling ? 1.1 : 0.9
+                }}
+                className={`absolute top-1.5 left-0 w-4 h-4 rounded-full shadow-2xl ${dspSettings.aiUpsampling ? 'bg-white' : 'bg-white/20'}`}
+                style={{ boxShadow: dspSettings.aiUpsampling ? `0 0 15px #fff` : 'none' }}
               />
             </button>
           </div>
@@ -78,12 +82,12 @@ export default function DSPSettings({
                 <span className="micro-label">Reconstruction Level</span>
                 <span className="timecode text-accent font-bold">{dspSettings.upsamplingLevel}x HD</span>
               </div>
-              <div className="flex space-x-2">
+              <div className="flex space-x-3">
                 {[2, 4, 8].map(level => (
                   <button
                     key={level}
                     onClick={() => updateSetting('upsamplingLevel', level)}
-                    className={`flex-1 py-2.5 rounded-xl text-[10px] font-mono font-bold transition-all ${dspSettings.upsamplingLevel === level ? 'bg-white/10 text-white border border-white/20 shadow-lg' : 'bg-white/5 text-white/20 border border-transparent'}`}
+                    className={`flex-1 py-3 rounded-2xl text-[10px] font-mono font-black transition-all duration-500 ${dspSettings.upsamplingLevel === level ? 'bg-white/10 text-white border border-white/20 shadow-[0_0_20px_rgba(0,212,255,0.2)] scale-105' : 'bg-white/[0.03] text-white/20 border border-transparent hover:bg-white/[0.05]'}`}
                   >
                     {level}X
                   </button>
@@ -98,10 +102,10 @@ export default function DSPSettings({
         </section>
 
         {/* Smart Crossfade Section */}
-        <section className="p-6 rounded-[32px] glass-card border border-white/5">
+        <section className="p-8 rounded-[40px] glass-premium relative overflow-hidden glass-border-light shadow-2xl">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-3">
-              <div className={`p-2.5 rounded-2xl ${dspSettings.smartCrossfade ? 'bg-blue-500/20 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.3)]' : 'bg-white/5 text-white/20'}`}>
+              <div className={`p-2.5 rounded-2xl ${dspSettings.smartCrossfade ? 'bg-accent/20 text-accent shadow-[0_0_15px_rgba(0,212,255,0.3)]' : 'bg-white/5 text-white/20'}`}>
                 <Waves size={20} />
               </div>
               <div>
@@ -137,7 +141,7 @@ export default function DSPSettings({
                 step="0.1"
                 value={dspSettings.crossfadeDuration}
                 onChange={(e) => updateSetting('crossfadeDuration', parseFloat(e.target.value))}
-                className="w-full accent-blue-500"
+                className="w-full accent-accent"
               />
               <div className="flex items-center space-x-2 text-[9px] text-blue-400/60 bg-blue-400/5 p-2.5 rounded-xl">
                 <Timer size={12} />
@@ -176,8 +180,10 @@ export default function DSPSettings({
           <motion.button
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             onClick={onInstall}
-            className="w-full flex items-center justify-center space-x-3 p-6 rounded-[32px] bg-accent text-black font-display font-bold tracking-tight shadow-[0_0_20px_rgba(0,212,255,0.3)] hover:scale-[0.98] transition-transform"
+            className="w-full flex items-center justify-center space-x-4 p-7 rounded-[40px] bg-white text-black font-display font-black uppercase tracking-[0.2em] shadow-2xl hover:bg-accent hover:text-white transition-all duration-500"
           >
             <Download size={20} />
             <span>Install Audio Wangler</span>
